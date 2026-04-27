@@ -176,7 +176,19 @@ function updateStatusBar() {
   if (state.activeTabId) {
     const tab = state.tabs.find(t => t.id === state.activeTabId);
     if (tab) {
-      $('#status-file').textContent = basename(tab.path || tab.title);
+      const el = $('#status-file');
+      const isExternal = tab.path && state.workspaceRoot &&
+        !tab.path.startsWith(state.workspaceRoot + '/') &&
+        tab.path !== state.workspaceRoot;
+      if (isExternal) {
+        el.textContent = '↗ ' + tab.path;
+        el.title = tab.path;
+        el.classList.add('external');
+      } else {
+        el.textContent = basename(tab.path || tab.title);
+        el.title = tab.path || '';
+        el.classList.remove('external');
+      }
     }
   }
 }
@@ -356,6 +368,12 @@ async function openFile(filePath) {
   try {
     const content = await invoke('read_file', { path: filePath });
     openTab(filePath, content);
+    const isExternal = state.workspaceRoot &&
+      !filePath.startsWith(state.workspaceRoot + '/') &&
+      filePath !== state.workspaceRoot;
+    if (isExternal) {
+      showToast('文件在工作区外，仅在编辑器中打开', 'info');
+    }
   } catch (e) {
     showToast(`打开失败: ${e}`, 'error');
   }
