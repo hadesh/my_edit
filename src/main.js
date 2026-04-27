@@ -265,6 +265,7 @@ function activateTab(id) {
   triggerPreviewUpdate();
 
   state.cm.focus();
+  saveSession();
 }
 
 function closeTab(id) {
@@ -300,6 +301,7 @@ function doCloseTab(id) {
     }
   }
   renderTabs();
+  saveSession();
 }
 
 function renderTabs() {
@@ -453,11 +455,12 @@ async function cmdOpenFolder() {
   if (selected) await loadWorkspace(selected);
 }
 
-async function loadWorkspace(folderPath) {
+async function loadWorkspace(folderPath, persist = true) {
   state.workspaceRoot = folderPath;
   $('#sidebar-title').textContent = basename(folderPath);
   $('#sidebar-title').title = folderPath;
   await refreshFileTree();
+  if (persist) saveSession();
 }
 
 // ── 文件树 ────────────────────────────────────
@@ -1554,7 +1557,7 @@ async function restoreSession() {
 
     if (session.workspaceRoot) {
       if (session.fileTreeOrder) state.fileTreeOrder = session.fileTreeOrder;
-      await loadWorkspace(session.workspaceRoot);
+      await loadWorkspace(session.workspaceRoot, false);
     }
 
     if (session.openFiles?.length) {
