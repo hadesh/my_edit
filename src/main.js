@@ -43,6 +43,7 @@ const state = {
   contextMenuTarget: null,
   selectedFolder: null,
   findState: { query: '', matches: 0, cursor: null },
+  fileTreeOrder: {},
 };
 
 let uid = 0;
@@ -454,6 +455,56 @@ async function refreshFileTree() {
   }
 }
 
+function parentOf(p) {
+  const i = p.lastIndexOf('/');
+  return i > 0 ? p.substring(0, i) : state.workspaceRoot;
+}
+
+function currentDirOrder(dirPath) {
+  if (state.fileTreeOrder[dirPath]) return [...state.fileTreeOrder[dirPath]];
+  const container = dirPath === state.workspaceRoot
+    ? $('#file-tree')
+    : $(`.tree-item[data-path="${CSS.escape(dirPath)}"]`)?.nextElementSibling;
+  if (!container) return [];
+  return [...container.children]
+    .filter(el => el.classList.contains('tree-item'))
+    .map(el => el.dataset.path)
+    .filter(Boolean);
+}
+
+function applyTreeOrder(srcPath, targetPath, targetIsDir) {
+  const srcParent = parentOf(srcPath);
+  let destParent;
+  if (!targetPath) {
+    destParent = state.workspaceRoot;
+  } else if (targetIsDir) {
+    destParent = targetPath;
+  } else {
+    destParent = parentOf(targetPath);
+  }
+
+  if (srcParent === destParent && !targetIsDir) {
+    const order = currentDirOrder(srcParent);
+    const withoutSrc = order.filter(p => p !== srcPath);
+    const tgtIdx = withoutSrc.indexOf(targetPath);
+    if (tgtIdx === -1) withoutSrc.push(srcPath);
+    else withoutSrc.splice(tgtIdx, 0, srcPath);
+    state.fileTreeOrder[srcParent] = withoutSrc;
+    return null;
+  }
+
+  const newDestPath = destParent + '/' + srcPath.split('/').pop();
+
+  const srcOrder = currentDirOrder(srcParent).filter(p => p !== srcPath);
+  state.fileTreeOrder[srcParent] = srcOrder;
+
+  const destOrder = currentDirOrder(destParent);
+  if (!destOrder.includes(newDestPath)) destOrder.push(newDestPath);
+  state.fileTreeOrder[destParent] = destOrder;
+
+  return newDestPath;
+}
+
 function renderFileTree(entries, container, depth) {
   const existing = $$('.tree-item', container);
   existing.forEach(el => el.remove());
@@ -463,7 +514,20 @@ function renderFileTree(entries, container, depth) {
     return;
   }
 
-  entries.forEach(entry => {
+  const parentPath = depth === 0 ? state.workspaceRoot : container.dataset.path;
+  const order = parentPath ? state.fileTreeOrder[parentPath] : null;
+  const sorted = order
+    ? [...entries].sort((a, b) => {
+        const ia = order.indexOf(a.path);
+        const ib = order.indexOf(b.path);
+        if (ia === -1 && ib === -1) return 0;
+        if (ia === -1) return 1;
+        if (ib === -1) return -1;
+        return ia - ib;
+      })
+    : entries;
+
+  sorted.forEach(entry => {
     const item = buildTreeItem(entry, depth);
     container.appendChild(item);
 
@@ -527,12 +591,18 @@ function buildTreeItem(entry, depth) {
       _treeDragGhost.style.top  = mv.clientY + 4 + 'px';
 
       $$('.tree-item.drag-over').forEach(el => el.classList.remove('drag-over'));
+      $$('.tree-item.drag-over-top').forEach(el => el.classList.remove('drag-over-top'));
       _treeDragGhost.style.display = 'none';
       const below = document.elementFromPoint(mv.clientX, mv.clientY);
       _treeDragGhost.style.display = '';
       const target = below?.closest('.tree-item');
       if (target && target !== item) {
-        target.classList.add('drag-over');
+        if (target.dataset.isDir === 'true') {
+          const rect = target.getBoundingClientRect();
+          target.classList.add(mv.clientY < rect.top + rect.height / 2 ? 'drag-over-top' : 'drag-over');
+        } else {
+          target.classList.add('drag-over-top');
+        }
       }
     };
 
@@ -549,31 +619,38 @@ function buildTreeItem(entry, depth) {
       const srcPath = _treeDragSrcPath;
       _treeDragSrcPath = null;
       $$('.tree-item.drag-over').forEach(el => el.classList.remove('drag-over'));
+      $$('.tree-item.drag-over-top').forEach(el => el.classList.remove('drag-over-top'));
 
       setTimeout(() => { _treeDragDidMove = false; }, 0);
 
       const below = document.elementFromPoint(mu.clientX, mu.clientY);
       const targetItem = below?.closest('.tree-item');
+      if (!srcPath) return;
 
-      let destDir;
-      if (!targetItem || targetItem === item) {
-        const onTree = below?.closest('#file-tree');
-        destDir = onTree ? state.workspaceRoot : null;
-      } else if (targetItem.dataset.isDir === 'true') {
-        destDir = targetItem.dataset.path;
-      } else {
-        const p = targetItem.dataset.path || '';
-        destDir = p.substring(0, p.lastIndexOf('/')) || state.workspaceRoot;
+      const onTree = below?.closest('#file-tree');
+      if (!targetItem && !onTree) return;
+
+      let targetPath = targetItem && targetItem !== item ? (targetItem.dataset.path ?? null) : null;
+      let targetIsDir = targetItem?.dataset.isDir === 'true';
+
+      if (targetPath && targetIsDir) {
+        const rect = targetItem.getBoundingClientRect();
+        const isUpperHalf = mu.clientY < rect.top + rect.height / 2;
+        if (isUpperHalf) {
+          targetIsDir = false;
+        }
       }
 
-      if (!destDir || !srcPath) return;
-      const name = srcPath.split('/').pop();
-      const destPath = destDir + '/' + name;
-      if (destPath === srcPath) return;
+      const newPath = applyTreeOrder(srcPath, targetPath, targetIsDir);
 
       try {
-        await invoke('rename_path', { oldPath: srcPath, newPath: destPath });
+        if (newPath && newPath !== srcPath) {
+          await invoke('rename_path', { oldPath: srcPath, newPath });
+        } else if (newPath !== null) {
+          return;
+        }
         await refreshFileTree();
+        await saveSession();
       } catch (err) {
         showToast(`移动失败: ${err}`, 'error');
       }
@@ -1433,6 +1510,7 @@ async function saveSession() {
   const session = {
     workspaceRoot: state.workspaceRoot,
     activeFilePath: activeTab?.path ?? null,
+    fileTreeOrder: state.fileTreeOrder,
     openFiles: state.tabs
       .filter(t => t.path && !t.dirty)
       .map(t => ({
@@ -1457,6 +1535,7 @@ async function restoreSession() {
     if (!session) return;
 
     if (session.workspaceRoot) {
+      if (session.fileTreeOrder) state.fileTreeOrder = session.fileTreeOrder;
       await loadWorkspace(session.workspaceRoot);
     }
 
