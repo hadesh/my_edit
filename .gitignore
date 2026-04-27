@@ -141,3 +141,10 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Rust 编译产物
+src-tauri/target/
+# Tauri 自动生成代码（如有 mobile 平台）
+src-tauri/gen/
+
+.DS_Store

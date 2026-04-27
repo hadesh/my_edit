@@ -1,0 +1,19 @@
+{
+  "name": "myedit",
+  "version": "1.0.0",
+  "description": "A powerful text editor built with Tauri v2",
+  "scripts": {
+    "dev": "PATH=\"$HOME/.cargo/bin:$PATH\" tauri dev",
+    "build": "PATH=\"$HOME/.cargo/bin:$PATH\" tauri build",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-dialog": "^2",
+    "@tauri-apps/plugin-fs": "^2",
+    "@tauri-apps/plugin-shell": "^2"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}
