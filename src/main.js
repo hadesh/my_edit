@@ -493,7 +493,7 @@ function buildTreeItem(entry, depth) {
     <span class="item-name">${entry.name}</span>`;
 
   item.addEventListener('click', e => {
-    if (_treeDragDidMove) { _treeDragDidMove = false; return; }
+    if (_treeDragDidMove) return;
     handleTreeItemClick(e, entry);
   });
   item.addEventListener('contextmenu', e => showTreeContextMenu(e, entry));
@@ -509,6 +509,7 @@ function buildTreeItem(entry, depth) {
     let dragging = false;
 
     const onMouseMove = mv => {
+      window.getSelection()?.removeAllRanges();
       if (!dragging) {
         if (Math.abs(mv.clientX - startX) < 4 && Math.abs(mv.clientY - startY) < 4) return;
         dragging = true;
@@ -541,15 +542,15 @@ function buildTreeItem(entry, depth) {
 
       if (!dragging) return;
 
-      _treeDragDidMove = true;
       item.classList.remove('dragging');
       document.body.style.userSelect = '';
       if (_treeDragGhost) { _treeDragGhost.remove(); _treeDragGhost = null; }
 
       const srcPath = _treeDragSrcPath;
       _treeDragSrcPath = null;
-
       $$('.tree-item.drag-over').forEach(el => el.classList.remove('drag-over'));
+
+      setTimeout(() => { _treeDragDidMove = false; }, 0);
 
       const below = document.elementFromPoint(mu.clientX, mu.clientY);
       const targetItem = below?.closest('.tree-item');
