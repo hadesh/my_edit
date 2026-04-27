@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 use std::process::Stdio;
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 
@@ -304,6 +304,36 @@ pub async fn execute_curl(
     let args = parts[1..].to_vec();
 
     execute_command_stream(app, id, program, args, None).await
+}
+
+#[tauri::command]
+pub fn exit_app(app: AppHandle) {
+    app.exit(0);
+}
+
+#[tauri::command]
+pub fn save_session(app: AppHandle, data: String) -> Result<(), String> {
+    let path = app
+        .path()
+        .home_dir()
+        .map_err(|e| format!("获取 home 目录失败: {}", e))?
+        .join(".myedit_session.json");
+
+    fs::write(&path, data).map_err(|e| format!("写入会话失败: {}", e))
+}
+
+#[tauri::command]
+pub fn load_session(app: AppHandle) -> Result<String, String> {
+    let path = app
+        .path()
+        .home_dir()
+        .map_err(|e| format!("获取 home 目录失败: {}", e))?
+        .join(".myedit_session.json");
+
+    if !path.exists() {
+        return Ok("null".to_string());
+    }
+    fs::read_to_string(&path).map_err(|e| format!("读取会话失败: {}", e))
 }
 
 fn shell_split(s: &str) -> Vec<String> {

@@ -41,10 +41,15 @@ const state = {
   activeTerminalId: null,
   pendingProcessIds: new Set(),
   contextMenuTarget: null,
+  selectedFolder: null,
   findState: { query: '', matches: 0, cursor: null },
 };
 
 let uid = 0;
+let _suppressChangeEvent = false;
+let _treeDragSrcPath = null;
+let _treeDragGhost = null;
+let _treeDragDidMove = false;
 const nextId = () => `id_${++uid}`;
 
 function $(sel, root = document) { return root.querySelector(sel); }
@@ -140,6 +145,7 @@ function initCodeMirror() {
   state.cm.setSize('100%', '100%');
 
   state.cm.on('change', () => {
+    if (_suppressChangeEvent) return;
     if (state.activeTabId) {
       const tab = state.tabs.find(t => t.id === state.activeTabId);
       if (tab && !tab.dirty) {
@@ -234,7 +240,9 @@ function activateTab(id) {
   $('#editor-placeholder').style.display = 'none';
   state.cm.getWrapperElement().style.display = '';
 
+  _suppressChangeEvent = true;
   state.cm.setValue(tab.content);
+  _suppressChangeEvent = false;
   state.cm.setCursor(tab.cursorPos);
   if (tab.scrollInfo) state.cm.scrollTo(tab.scrollInfo.left, tab.scrollInfo.top);
 
@@ -484,11 +492,94 @@ function buildTreeItem(entry, depth) {
     <span class="item-icon">${icon}</span>
     <span class="item-name">${entry.name}</span>`;
 
-  item.addEventListener('click', e => handleTreeItemClick(e, entry));
+  item.addEventListener('click', e => {
+    if (_treeDragDidMove) { _treeDragDidMove = false; return; }
+    handleTreeItemClick(e, entry);
+  });
   item.addEventListener('contextmenu', e => showTreeContextMenu(e, entry));
   item.addEventListener('dblclick', () => {
     if (entry.is_dir) return;
     openFile(entry.path);
+  });
+
+  item.addEventListener('mousedown', e => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const startX = e.clientX, startY = e.clientY;
+    let dragging = false;
+
+    const onMouseMove = mv => {
+      if (!dragging) {
+        if (Math.abs(mv.clientX - startX) < 4 && Math.abs(mv.clientY - startY) < 4) return;
+        dragging = true;
+        _treeDragSrcPath = entry.path;
+        document.body.style.userSelect = 'none';
+
+        _treeDragGhost = document.createElement('div');
+        _treeDragGhost.className = 'tree-drag-ghost';
+        _treeDragGhost.textContent = entry.name;
+        document.body.appendChild(_treeDragGhost);
+        item.classList.add('dragging');
+      }
+
+      _treeDragGhost.style.left = mv.clientX + 12 + 'px';
+      _treeDragGhost.style.top  = mv.clientY + 4 + 'px';
+
+      $$('.tree-item.drag-over').forEach(el => el.classList.remove('drag-over'));
+      _treeDragGhost.style.display = 'none';
+      const below = document.elementFromPoint(mv.clientX, mv.clientY);
+      _treeDragGhost.style.display = '';
+      const target = below?.closest('.tree-item');
+      if (target && target !== item) {
+        target.classList.add('drag-over');
+      }
+    };
+
+    const onMouseUp = async mu => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+
+      if (!dragging) return;
+
+      _treeDragDidMove = true;
+      item.classList.remove('dragging');
+      document.body.style.userSelect = '';
+      if (_treeDragGhost) { _treeDragGhost.remove(); _treeDragGhost = null; }
+
+      const srcPath = _treeDragSrcPath;
+      _treeDragSrcPath = null;
+
+      $$('.tree-item.drag-over').forEach(el => el.classList.remove('drag-over'));
+
+      const below = document.elementFromPoint(mu.clientX, mu.clientY);
+      const targetItem = below?.closest('.tree-item');
+
+      let destDir;
+      if (!targetItem || targetItem === item) {
+        const onTree = below?.closest('#file-tree');
+        destDir = onTree ? state.workspaceRoot : null;
+      } else if (targetItem.dataset.isDir === 'true') {
+        destDir = targetItem.dataset.path;
+      } else {
+        const p = targetItem.dataset.path || '';
+        destDir = p.substring(0, p.lastIndexOf('/')) || state.workspaceRoot;
+      }
+
+      if (!destDir || !srcPath) return;
+      const name = srcPath.split('/').pop();
+      const destPath = destDir + '/' + name;
+      if (destPath === srcPath) return;
+
+      try {
+        await invoke('rename_path', { oldPath: srcPath, newPath: destPath });
+        await refreshFileTree();
+      } catch (err) {
+        showToast(`移动失败: ${err}`, 'error');
+      }
+    };
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
   });
 
   return item;
@@ -519,9 +610,14 @@ function handleTreeItemClick(e, entry) {
     container.style.display = collapsed ? '' : 'none';
     item.querySelector('.collapse-icon').textContent = collapsed ? '▾' : '▸';
     item.querySelector('.item-icon').textContent = collapsed ? '📂' : '📁';
+
+    $$('.tree-item.active').forEach(el => el.classList.remove('active'));
+    item.classList.add('active');
+    state.selectedFolder = entry.path;
   } else {
     $$('.tree-item.active').forEach(el => el.classList.remove('active'));
     e.currentTarget.classList.add('active');
+    state.selectedFolder = null;
     openFile(entry.path);
   }
 }
@@ -1288,11 +1384,13 @@ function bindEvents() {
   if (linkOpenFolder) linkOpenFolder.addEventListener('click', cmdOpenFolder);
   $('#btn-refresh').addEventListener('click', refreshFileTree);
   $('#btn-new-file').addEventListener('click', () => {
-    if (state.workspaceRoot) promptNewFile(state.workspaceRoot);
+    if (state.selectedFolder) promptNewFile(state.selectedFolder);
+    else if (state.workspaceRoot) promptNewFile(state.workspaceRoot);
     else openUntitledTab();
   });
   $('#btn-new-folder').addEventListener('click', () => {
-    if (state.workspaceRoot) promptNewFolder(state.workspaceRoot);
+    if (state.selectedFolder) promptNewFolder(state.selectedFolder);
+    else if (state.workspaceRoot) promptNewFolder(state.workspaceRoot);
     else showToast('请先打开一个文件夹', 'info');
   });
   $('#btn-new-term').addEventListener('click', createTerminalSession);
@@ -1305,16 +1403,101 @@ function bindEvents() {
     $('#terminal-resizer').style.display = 'none';
   });
 
-  // 拖放文件到编辑器
+  // 拖放文件/文件夹到编辑器（Tauri v2 drag-drop 事件携带真实文件系统路径）
   document.addEventListener('dragover', e => e.preventDefault());
-  document.addEventListener('drop', async e => {
-    e.preventDefault();
-    const files = e.dataTransfer?.files;
-    if (!files?.length) return;
-    for (const file of files) {
-      if (file.path) await openFile(file.path);
+  document.addEventListener('drop', e => e.preventDefault()); // 阻止浏览器默认行为
+  listen('tauri://drag-drop', async event => {
+    if (_treeDragSrcPath) return; // 文件树内部拖拽，忽略系统事件
+    const paths = event.payload?.paths;
+    if (!paths?.length) return;
+    for (const p of paths) {
+      try {
+        const isDir = await invoke('path_exists', { path: p }) && await invoke('get_file_info', { path: p }).then(info => info.is_dir);
+        if (isDir) {
+          await loadWorkspace(p);
+        } else {
+          await openFile(p);
+        }
+      } catch (e) {
+        showToast(`拖放打开失败: ${e}`, 'error');
+      }
     }
   });
+}
+
+// ── 会话持久化 ───────────────────────────────
+
+async function saveSession() {
+  const activeTab = state.tabs.find(t => t.id === state.activeTabId);
+  const session = {
+    workspaceRoot: state.workspaceRoot,
+    activeFilePath: activeTab?.path ?? null,
+    openFiles: state.tabs
+      .filter(t => t.path && !t.dirty)
+      .map(t => ({
+        path: t.path,
+        cursorPos: t.id === state.activeTabId
+          ? state.cm.getCursor()
+          : t.cursorPos,
+        scrollInfo: t.id === state.activeTabId
+          ? (() => { const s = state.cm.getScrollInfo(); return { left: s.left, top: s.top }; })()
+          : (t.scrollInfo ? { left: t.scrollInfo.left, top: t.scrollInfo.top } : null),
+      })),
+  };
+  try {
+    await invoke('save_session', { data: JSON.stringify(session) });
+  } catch (_) {}
+}
+
+async function restoreSession() {
+  try {
+    const raw = await invoke('load_session');
+    const session = JSON.parse(raw);
+    if (!session) return;
+
+    if (session.workspaceRoot) {
+      await loadWorkspace(session.workspaceRoot);
+    }
+
+    if (session.openFiles?.length) {
+      let firstTabId = null;
+      let activeTabId = null;
+
+      for (const entry of session.openFiles) {
+        try {
+          const content = await invoke('read_file', { path: entry.path });
+          const existing = state.tabs.find(t => t.path === entry.path);
+          if (existing) {
+            existing.cursorPos = entry.cursorPos ?? { line: 0, ch: 0 };
+            existing.scrollInfo = entry.scrollInfo ?? null;
+            if (!firstTabId) firstTabId = existing.id;
+            if (entry.path === session.activeFilePath) activeTabId = existing.id;
+            continue;
+          }
+          const tab = {
+            id: nextId(),
+            path: entry.path,
+            title: basename(entry.path),
+            content,
+            dirty: false,
+            savedContent: content,
+            scrollInfo: entry.scrollInfo ?? null,
+            cursorPos: entry.cursorPos ?? { line: 0, ch: 0 },
+          };
+          state.tabs.push(tab);
+          if (!firstTabId) firstTabId = tab.id;
+          if (entry.path === session.activeFilePath) activeTabId = tab.id;
+        } catch (_) {}
+      }
+
+      renderTabs();
+      const targetId = activeTabId ?? firstTabId;
+      if (targetId) {
+        state.activeTabId = null;
+        activateTab(targetId);
+      }
+    }
+  } catch (_) {}
 }
 
 // ── 初始化入口 ────────────────────────────────
@@ -1327,6 +1510,18 @@ function init() {
   bindEvents();
 
   state.cm.on('cursorActivity', () => setTimeout(updateCurlTooltip, 50));
+
+  listen('tauri://close-requested', async () => {
+    await saveSession();
+    window.__TAURI__.window.getCurrentWindow().destroy();
+  });
+
+  listen('exit-requested', async () => {
+    await saveSession();
+    await invoke('exit_app');
+  });
+
+  restoreSession();
 }
 
 document.addEventListener('DOMContentLoaded', init);

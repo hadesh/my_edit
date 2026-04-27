@@ -1,5 +1,7 @@
 mod commands;
 
+use tauri::Emitter;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -19,7 +21,16 @@ pub fn run() {
             commands::execute_command,
             commands::execute_command_stream,
             commands::execute_curl,
+            commands::save_session,
+            commands::load_session,
+            commands::exit_app,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while running tauri application")
+        .run(|app, event| {
+            if let tauri::RunEvent::ExitRequested { api, .. } = event {
+                api.prevent_exit();
+                let _ = app.emit("exit-requested", ());
+            }
+        });
 }
