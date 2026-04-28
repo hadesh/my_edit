@@ -817,6 +817,121 @@
       to   { opacity: 1; transform: translateY(0); }
     }
 
+    /* ── 文件搜索弹窗 ──────────────────────────── */
+    #file-search-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 9000;
+      display: none;
+      align-items: flex-start;
+      justify-content: center;
+      padding-top: 80px;
+    }
+    #file-search-overlay.visible { display: flex; }
+    #file-search-box {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-light);
+      border-radius: 10px;
+      width: 560px;
+      max-width: 90vw;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    #file-search-input-wrap {
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      border-bottom: 1px solid var(--border);
+      gap: 8px;
+    }
+    #file-search-input-wrap .fs-icon {
+      color: var(--text-muted);
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+    #file-search-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text-primary);
+      font-size: 14px;
+      padding: 13px 0;
+      caret-color: var(--accent);
+    }
+    #file-search-input::placeholder { color: var(--text-muted); }
+    #file-search-results {
+      max-height: 360px;
+      overflow-y: auto;
+      padding: 6px 0;
+    }
+    #file-search-results:empty::after {
+      content: '无匹配结果';
+      display: block;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 12px;
+      padding: 24px 0;
+    }
+    .fs-item {
+      display: flex;
+      align-items: center;
+      padding: 7px 16px;
+      cursor: pointer;
+      gap: 10px;
+      border-radius: 0;
+    }
+    .fs-item:hover, .fs-item.active {
+      background: var(--bg-hover);
+    }
+    .fs-item.active { background: var(--bg-active); }
+    .fs-item .fs-name {
+      color: var(--text-primary);
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+    .fs-item .fs-name mark {
+      background: transparent;
+      color: var(--accent);
+      font-weight: 600;
+    }
+    .fs-item .fs-path {
+      color: var(--text-muted);
+      font-size: 11px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      direction: rtl;
+      text-align: left;
+      flex: 1;
+    }
+    .fs-item .fs-badge {
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 4px;
+      background: rgba(86,156,214,0.2);
+      color: var(--accent);
+      flex-shrink: 0;
+    }
+    #file-search-footer {
+      border-top: 1px solid var(--border);
+      padding: 6px 16px;
+      display: flex;
+      gap: 16px;
+      color: var(--text-muted);
+      font-size: 11px;
+    }
+    #file-search-footer kbd {
+      background: var(--bg-hover);
+      border: 1px solid var(--border-light);
+      border-radius: 3px;
+      padding: 1px 5px;
+      font-size: 10px;
+      color: var(--text-secondary);
+    }
+
     /* ── 模态对话框 ──────────────────────────── */
     .modal-overlay {
       position: fixed; inset: 0;
@@ -946,6 +1061,86 @@
       animation: spin 0.6s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+    /* ── 快捷键帮助 modal ─────────────────────── */
+    #shortcuts-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 3000;
+      align-items: center;
+      justify-content: center;
+    }
+    #shortcuts-overlay.visible { display: flex; }
+    #shortcuts-box {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      width: 620px;
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+      overflow: hidden;
+    }
+    #shortcuts-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 18px 12px;
+      border-bottom: 1px solid var(--border);
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      flex-shrink: 0;
+    }
+    #shortcuts-close {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 18px;
+      cursor: pointer;
+      line-height: 1;
+      padding: 0 2px;
+    }
+    #shortcuts-close:hover { color: var(--text-primary); }
+    #shortcuts-body {
+      overflow-y: auto;
+      padding: 12px 18px 18px;
+    }
+    .sc-group-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin: 16px 0 6px;
+    }
+    .sc-group-title:first-child { margin-top: 4px; }
+    .sc-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .sc-table tr td {
+      padding: 5px 6px;
+      font-size: 12px;
+      color: var(--text-primary);
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .sc-table tr:last-child td { border-bottom: none; }
+    .sc-table td:first-child { color: var(--text-secondary); width: 55%; }
+    .sc-table td:last-child { text-align: right; white-space: nowrap; }
+    .sc-table kbd {
+      display: inline-block;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-size: 11px;
+      font-family: inherit;
+      color: var(--text-primary);
+      margin-left: 3px;
+    }
   </style>
 </head>
 <body>
@@ -958,6 +1153,8 @@
         <div class="dropdown-menu" id="menu-file">
           <div class="menu-cmd" data-action="open-folder">打开文件夹 <span class="shortcut">⌘⇧O</span></div>
           <div class="menu-cmd" data-action="open-file">打开文件 <span class="shortcut">⌘O</span></div>
+          <div class="menu-sep"></div>
+          <div class="menu-cmd" data-action="file-search">搜索文件 <span class="shortcut">⌘P</span></div>
           <div class="menu-sep"></div>
           <div class="menu-cmd" data-action="new-file">新建文件 <span class="shortcut">⌘N</span></div>
           <div class="menu-sep"></div>
@@ -972,13 +1169,13 @@
           <div class="menu-cmd" data-action="find">查找 <span class="shortcut">⌘F</span></div>
           <div class="menu-cmd" data-action="replace">查找替换 <span class="shortcut">⌘H</span></div>
           <div class="menu-sep"></div>
-          <div class="menu-cmd" data-action="format-json">格式化 JSON <span class="shortcut">⌘⇧F</span></div>
+          <div class="menu-cmd" data-action="format-json">格式化 JSON <span class="shortcut">⌘⇧J</span></div>
           <div class="menu-cmd" data-action="toggle-comment">切换注释 <span class="shortcut">⌘/</span></div>
         </div>
       </div>
       <div class="menu-item" data-menu="view">视图
         <div class="dropdown-menu" id="menu-view">
-          <div class="menu-cmd" data-action="toggle-preview">Markdown 预览 <span class="shortcut">⌘⇧P</span></div>
+          <div class="menu-cmd" data-action="toggle-preview">Markdown 预览 <span class="shortcut">⌘⇧E</span></div>
           <div class="menu-cmd" data-action="toggle-terminal">终端 <span class="shortcut">⌘\`</span></div>
           <div class="menu-cmd" data-action="toggle-sidebar">侧边栏 <span class="shortcut">⌘B</span></div>
           <div class="menu-sep"></div>
@@ -995,6 +1192,11 @@
           <div class="menu-cmd" data-action="run-curl">执行 curl <span class="shortcut">⌘⇧C</span></div>
           <div class="menu-sep"></div>
           <div class="menu-cmd" data-action="stop-process">停止 <span class="shortcut">⌘.</span></div>
+        </div>
+      </div>
+      <div class="menu-item" data-menu="help">帮助
+        <div class="dropdown-menu" id="menu-help">
+          <div class="menu-cmd" data-action="show-shortcuts">快捷键参考</div>
         </div>
       </div>
     </div>
@@ -1118,6 +1320,71 @@
 <div id="curl-tooltip">
   <span class="curl-icon">⚡</span>
   <span id="curl-tooltip-text">执行 curl</span>
+</div>
+
+<!-- 文件搜索弹窗 -->
+<div id="shortcuts-overlay">
+  <div id="shortcuts-box">
+    <div id="shortcuts-header">
+      <span>快捷键参考</span>
+      <button id="shortcuts-close">✕</button>
+    </div>
+    <div id="shortcuts-body">
+
+      <div class="sc-group-title">文件</div>
+      <table class="sc-table">
+        <tr><td>新建文件</td><td><kbd>⌘N</kbd></td></tr>
+        <tr><td>打开文件</td><td><kbd>⌘O</kbd></td></tr>
+        <tr><td>打开文件夹</td><td><kbd>⌘⇧O</kbd></td></tr>
+        <tr><td>搜索文件</td><td><kbd>⌘P</kbd></td></tr>
+        <tr><td>保存</td><td><kbd>⌘S</kbd></td></tr>
+        <tr><td>另存为</td><td><kbd>⌘⇧S</kbd></td></tr>
+        <tr><td>关闭标签页</td><td><kbd>⌘W</kbd></td></tr>
+      </table>
+
+      <div class="sc-group-title">编辑</div>
+      <table class="sc-table">
+        <tr><td>查找</td><td><kbd>⌘F</kbd></td></tr>
+        <tr><td>查找替换</td><td><kbd>⌘H</kbd></td></tr>
+        <tr><td>在文件中查找</td><td><kbd>⌘⇧F</kbd></td></tr>
+        <tr><td>注释切换</td><td><kbd>⌘/</kbd></td></tr>
+        <tr><td>JSON 格式化</td><td><kbd>⌘⇧J</kbd></td></tr>
+      </table>
+
+      <div class="sc-group-title">视图</div>
+      <table class="sc-table">
+        <tr><td>切换侧边栏</td><td><kbd>⌘B</kbd></td></tr>
+        <tr><td>切换终端</td><td><kbd>⌘`</kbd></td></tr>
+        <tr><td>Markdown 预览</td><td><kbd>⌘⇧E</kbd></td></tr>
+        <tr><td>放大字体</td><td><kbd>⌘+</kbd></td></tr>
+        <tr><td>缩小字体</td><td><kbd>⌘-</kbd></td></tr>
+        <tr><td>重置字体</td><td><kbd>⌘0</kbd></td></tr>
+      </table>
+
+      <div class="sc-group-title">运行</div>
+      <table class="sc-table">
+        <tr><td>运行脚本</td><td><kbd>⌘↵</kbd></td></tr>
+        <tr><td>运行选中</td><td><kbd>⌘⇧↵</kbd></td></tr>
+        <tr><td>执行 curl</td><td><kbd>⌘⇧C</kbd></td></tr>
+      </table>
+
+    </div>
+  </div>
+</div>
+
+<div id="file-search-overlay">
+  <div id="file-search-box">
+    <div id="file-search-input-wrap">
+      <span class="fs-icon">🔍</span>
+      <input id="file-search-input" type="text" placeholder="搜索文件名…" autocomplete="off" spellcheck="false">
+    </div>
+    <div id="file-search-results"></div>
+    <div id="file-search-footer">
+      <span><kbd>↑</kbd><kbd>↓</kbd> 导航</span>
+      <span><kbd>↵</kbd> 打开</span>
+      <span><kbd>Esc</kbd> 关闭</span>
+    </div>
+  </div>
 </div>
 
 <!-- Toast 容器 -->

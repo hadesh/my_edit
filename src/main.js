@@ -140,6 +140,22 @@ function initCodeMirror() {
         if (cm.somethingSelected()) cm.indentSelection('add');
         else cm.replaceSelection('  ', 'end');
       },
+      'Cmd-F':            () => openFindBar(false),
+      'Ctrl-F':           () => openFindBar(false),
+      'Cmd-P':            () => showFileSearch(),
+      'Ctrl-P':           () => showFileSearch(),
+      'Shift-Cmd-S':      () => saveAs(),
+      'Shift-Cmd-O':      () => cmdOpenFolder(),
+      'Shift-Cmd-F':      () => openFindBar(false),
+      'Shift-Cmd-J':      () => formatJSON(),
+      'Shift-Cmd-E':      () => togglePreview(),
+      'Shift-Cmd-Enter':  () => runSelection(),
+      'Shift-Ctrl-S':     () => saveAs(),
+      'Shift-Ctrl-O':     () => cmdOpenFolder(),
+      'Shift-Ctrl-F':     () => openFindBar(false),
+      'Shift-Ctrl-J':     () => formatJSON(),
+      'Shift-Ctrl-E':     () => togglePreview(),
+      'Shift-Ctrl-Enter': () => runSelection(),
     },
   });
 
@@ -331,6 +347,8 @@ function renderTabs() {
     });
     list.appendChild(el);
   });
+  const activeEl = list.querySelector('.tab.active');
+  if (activeEl) activeEl.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 }
 
 function showTabContextMenu(e, tabId) {
@@ -1165,6 +1183,129 @@ async function executeCurl(curlCmd) {
 
 // ── 查找替换 ─────────────────────────────────
 
+let _fsAllFiles = [];
+let _fsActiveIdx = -1;
+
+function _fsFlattenEntries(entries) {
+  const result = [];
+  for (const e of entries) {
+    if (!e.is_dir) result.push(e.path);
+    if (e.is_dir && e.children) result.push(..._fsFlattenEntries(e.children));
+  }
+  return result;
+}
+
+function _fsFuzzyMatch(name, query) {
+  if (!query) return { match: true, html: escHtml(name) };
+  const lName = name.toLowerCase();
+  const lQuery = query.toLowerCase();
+  let qi = 0, html = '', matchedAny = false;
+  for (let ni = 0; ni < name.length; ni++) {
+    if (qi < lQuery.length && lName[ni] === lQuery[qi]) {
+      html += `<mark>${escHtml(name[ni])}</mark>`;
+      qi++;
+      matchedAny = true;
+    } else {
+      html += escHtml(name[ni]);
+    }
+  }
+  return { match: qi === lQuery.length, html: matchedAny ? html : escHtml(name) };
+}
+
+function escHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+async function showFileSearch() {
+  const overlay = $('#file-search-overlay');
+  overlay.classList.add('visible');
+  const input = $('#file-search-input');
+  input.value = '';
+  _fsActiveIdx = -1;
+
+  _fsAllFiles = [];
+  const openPaths = new Set(state.tabs.map(t => t.path).filter(Boolean));
+  state.tabs.forEach(t => { if (t.path) _fsAllFiles.push({ path: t.path, open: true }); });
+
+  if (state.workspaceRoot) {
+    try {
+      const entries = await invoke('read_dir_tree', { path: state.workspaceRoot });
+      const allPaths = _fsFlattenEntries(entries);
+      allPaths.forEach(p => { if (!openPaths.has(p)) _fsAllFiles.push({ path: p, open: false }); });
+    } catch (_) {}
+  }
+
+  _fsRender('');
+  input.focus();
+}
+
+function hideFileSearch() {
+  $('#file-search-overlay').classList.remove('visible');
+  $('#file-search-results').innerHTML = '';
+  _fsAllFiles = [];
+  _fsActiveIdx = -1;
+}
+
+function _fsBasename(p) {
+  return p.split('/').pop();
+}
+
+function _fsRelPath(p) {
+  if (state.workspaceRoot && p.startsWith(state.workspaceRoot + '/')) {
+    return p.slice(state.workspaceRoot.length + 1);
+  }
+  return p;
+}
+
+function _fsRender(query) {
+  const container = $('#file-search-results');
+  const filtered = [];
+  for (const f of _fsAllFiles) {
+    const name = _fsBasename(f.path);
+    const { match, html } = _fsFuzzyMatch(name, query);
+    if (match) filtered.push({ ...f, nameHtml: html, name });
+  }
+
+  if (filtered.length === 0) {
+    container.innerHTML = '';
+    _fsActiveIdx = -1;
+    return;
+  }
+
+  _fsActiveIdx = 0;
+  container.innerHTML = filtered.map((f, i) => `
+    <div class="fs-item${i === 0 ? ' active' : ''}" data-idx="${i}" data-path="${escHtml(f.path)}">
+      <span class="fs-name">${f.nameHtml}</span>
+      <span class="fs-path">${escHtml(_fsRelPath(f.path))}</span>
+      ${f.open ? '<span class="fs-badge">已打开</span>' : ''}
+    </div>`).join('');
+
+  container.querySelectorAll('.fs-item').forEach(el => {
+    el.addEventListener('click', () => _fsOpen(el.dataset.path));
+    el.addEventListener('mouseenter', () => {
+      _fsSetActive(parseInt(el.dataset.idx));
+    });
+  });
+}
+
+function _fsSetActive(idx) {
+  const items = $('#file-search-results').querySelectorAll('.fs-item');
+  if (!items.length) return;
+  _fsActiveIdx = Math.max(0, Math.min(idx, items.length - 1));
+  items.forEach((el, i) => el.classList.toggle('active', i === _fsActiveIdx));
+  items[_fsActiveIdx].scrollIntoView({ block: 'nearest' });
+}
+
+async function _fsOpen(path) {
+  hideFileSearch();
+  const existing = state.tabs.find(t => t.path === path);
+  if (existing) { activateTab(existing.id); return; }
+  try {
+    const content = await invoke('read_file', { path });
+    openTab(path, content);
+  } catch (e) { showToast('无法打开文件：' + e, 'error'); }
+}
+
 let findCursor = null;
 
 function openFindBar(withReplace = false) {
@@ -1262,6 +1403,7 @@ function dispatchMenuAction(action) {
   switch (action) {
     case 'open-file':     cmdOpenFile(); break;
     case 'open-folder':   cmdOpenFolder(); break;
+    case 'file-search':   showFileSearch(); break;
     case 'new-file':      openUntitledTab(); break;
     case 'save':          saveCurrentFile(); break;
     case 'save-as':       saveAs(); break;
@@ -1302,6 +1444,9 @@ function dispatchMenuAction(action) {
     }
     case 'stop-process':
       showToast('停止功能需要进程 PID 管理，当前版本暂不支持强制 kill', 'info');
+      break;
+    case 'show-shortcuts':
+      $('#shortcuts-overlay').classList.add('visible');
       break;
   }
 }
@@ -1432,6 +1577,38 @@ function bindEvents() {
   $('#btn-replace-all').addEventListener('click', () => replaceAll($('#find-input').value, $('#replace-input').value));
   $('#btn-find-close').addEventListener('click', closeFindBar);
 
+  // 快捷键帮助 modal
+  $('#shortcuts-close').addEventListener('click', () => {
+    $('#shortcuts-overlay').classList.remove('visible');
+  });
+  $('#shortcuts-overlay').addEventListener('click', e => {
+    if (e.target === $('#shortcuts-overlay')) $('#shortcuts-overlay').classList.remove('visible');
+  });
+
+  // 文件搜索弹窗
+  $('#file-search-overlay').addEventListener('click', e => {
+    if (e.target === $('#file-search-overlay')) hideFileSearch();
+  });
+  $('#file-search-input').addEventListener('input', e => {
+    _fsRender(e.target.value.trim());
+  });
+  $('#file-search-input').addEventListener('keydown', e => {
+    const items = $('#file-search-results').querySelectorAll('.fs-item');
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      _fsSetActive(_fsActiveIdx + 1);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      _fsSetActive(_fsActiveIdx - 1);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (items[_fsActiveIdx]) _fsOpen(items[_fsActiveIdx].dataset.path);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      hideFileSearch();
+    }
+  });
+
   // 菜单栏
   $$('.menu-item').forEach(item => {
     item.addEventListener('click', e => {
@@ -1461,15 +1638,17 @@ function bindEvents() {
     if (!mod) return;
 
     if (e.key === 's' && !e.shiftKey) { e.preventDefault(); saveCurrentFile(); }
-    else if (e.key === 's' && e.shiftKey) { e.preventDefault(); saveAs(); }
+    else if (e.key === 'S' && e.shiftKey) { e.preventDefault(); saveAs(); }
     else if (e.key === 'o' && !e.shiftKey) { e.preventDefault(); cmdOpenFile(); }
     else if (e.key === 'O' && e.shiftKey) { e.preventDefault(); cmdOpenFolder(); }
+    else if (e.key === 'p' && !e.shiftKey) { e.preventDefault(); showFileSearch(); }
     else if (e.key === 'n') { e.preventDefault(); openUntitledTab(); }
     else if (e.key === 'w') { e.preventDefault(); if (state.activeTabId) closeTab(state.activeTabId); }
     else if (e.key === 'f') { e.preventDefault(); openFindBar(false); }
     else if (e.key === 'h') { e.preventDefault(); openFindBar(true); }
-    else if (e.key === 'F' && e.shiftKey) { e.preventDefault(); formatJSON(); }
-    else if (e.key === 'P' && e.shiftKey) { e.preventDefault(); togglePreview(); }
+    else if (e.key === 'F' && e.shiftKey) { e.preventDefault(); openFindBar(false); }
+    else if (e.key === 'J' && e.shiftKey) { e.preventDefault(); formatJSON(); }
+    else if (e.key === 'E' && e.shiftKey) { e.preventDefault(); togglePreview(); }
     else if (e.key === '`') { e.preventDefault(); dispatchMenuAction('toggle-terminal'); }
     else if (e.key === 'b') { e.preventDefault(); dispatchMenuAction('toggle-sidebar'); }
     else if (e.key === '=' || e.key === '+') { e.preventDefault(); setFontSize(state.fontSize + 1); }
