@@ -1553,6 +1553,8 @@ function bindEvents() {
       promptNewFile(target.path);
     } else if (action === 'new-folder-here' && target) {
       promptNewFolder(target.path);
+    } else if (action === 'reveal-in-finder' && target) {
+      await invoke('reveal_in_finder', { path: target.path });
     }
   });
 

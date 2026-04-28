@@ -312,6 +312,16 @@ pub fn exit_app(app: AppHandle) {
 }
 
 #[tauri::command]
+pub fn reveal_in_finder(path: String) -> Result<(), String> {
+    std::process::Command::new("open")
+        .arg("-R")
+        .arg(&path)
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
 pub fn save_session(app: AppHandle, data: String) -> Result<(), String> {
     let path = app
         .path()
