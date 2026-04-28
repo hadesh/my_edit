@@ -25,6 +25,7 @@ pub fn run() {
             commands::load_session,
             commands::exit_app,
             commands::reveal_in_finder,
+            commands::shell_exec,
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")

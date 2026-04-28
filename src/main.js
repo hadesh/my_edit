@@ -956,11 +956,16 @@ function createTerminalSession(label = null) {
     id,
     label: label || `终端 ${state.terminalSessions.length + 1}`,
     lines: [],
+    cwd: state.workspaceRoot || null,
+    history: [],
+    historyIdx: -1,
   };
   state.terminalSessions.push(session);
   state.activeTerminalId = id;
   renderTerminalTabs();
   ensureTerminalVisible();
+  renderTerminalInput();
+  setTimeout(() => focusTerminalInput(), 50);
   return session;
 }
 
@@ -974,6 +979,8 @@ function activateTerminalSession(id) {
   state.activeTerminalId = id;
   renderTerminalTabs();
   renderTerminalOutput();
+  renderTerminalInput();
+  setTimeout(() => focusTerminalInput(), 50);
 }
 
 function closeTerminalSession(id) {
@@ -1039,6 +1046,132 @@ function renderTerminalOutput() {
 
 function escapeHtml(s) {
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function terminalShortCwd(cwd) {
+  if (!cwd) return '~';
+  const home = state.workspaceRoot;
+  if (home && cwd === home) return '~';
+  if (home && cwd.startsWith(home + '/')) return '~/' + cwd.slice(home.length + 1);
+  const parts = cwd.split('/');
+  return parts[parts.length - 1] || '/';
+}
+
+function renderTerminalInput() {
+  const session = state.terminalSessions.find(s => s.id === state.activeTerminalId);
+  const prompt = $('#terminal-prompt');
+  if (!session) { prompt.textContent = '$ '; return; }
+  prompt.textContent = `${terminalShortCwd(session.cwd)} $ `;
+}
+
+function focusTerminalInput() {
+  const input = $('#terminal-input');
+  if (input) input.focus();
+}
+
+async function submitTerminalCommand(rawCmd) {
+  const session = state.terminalSessions.find(s => s.id === state.activeTerminalId);
+  if (!session) return;
+
+  const cmd = rawCmd.trim();
+  if (!cmd) return;
+
+  session.history.unshift(cmd);
+  if (session.history.length > 200) session.history.pop();
+  session.historyIdx = -1;
+
+  appendTerminalLine(session.id, `${terminalShortCwd(session.cwd)} $ ${cmd}`, 'system');
+
+  if (cmd === 'clear' || cmd === 'cls') {
+    session.lines = [];
+    renderTerminalOutput();
+    renderTerminalInput();
+    return;
+  }
+
+  const cdMatch = cmd.match(/^cd(?:\s+(.+))?$/);
+  if (cdMatch) {
+    const target = cdMatch[1]?.trim() || (state.workspaceRoot || '~');
+    const resolved = target === '~'
+      ? (state.workspaceRoot || null)
+      : target.startsWith('/')
+        ? target
+        : (session.cwd ? session.cwd + '/' + target : target);
+    try {
+      const exists = await invoke('path_exists', { path: resolved });
+      if (exists) {
+        session.cwd = resolved;
+        appendTerminalLine(session.id, ``, '');
+      } else {
+        appendTerminalLine(session.id, `cd: 目录不存在: ${resolved}`, 'stderr');
+      }
+    } catch {
+      appendTerminalLine(session.id, `cd: 失败`, 'stderr');
+    }
+    renderTerminalInput();
+    return;
+  }
+
+  const execId = nextId();
+  const unlisten = await listen(`shell-output-${execId}`, event => {
+    const { stream, data } = event.payload;
+    if (stream === 'stdout') {
+      appendTerminalLine(session.id, data, '');
+    } else if (stream === 'stderr') {
+      appendTerminalLine(session.id, data, 'stderr');
+    } else if (stream === 'exit') {
+      const code = parseInt(data);
+      if (code !== 0) {
+        appendTerminalLine(session.id, `退出码: ${code}`, 'exit-err');
+      }
+      unlisten();
+      renderTerminalInput();
+      focusTerminalInput();
+    }
+  });
+
+  try {
+    await invoke('shell_exec', {
+      id: execId,
+      cmd,
+      cwd: session.cwd || undefined,
+    });
+  } catch (err) {
+    appendTerminalLine(session.id, `错误: ${err}`, 'stderr');
+    unlisten();
+    renderTerminalInput();
+  }
+}
+
+function initTerminalInput() {
+  const input = $('#terminal-input');
+
+  input.addEventListener('keydown', async e => {
+    const session = state.terminalSessions.find(s => s.id === state.activeTerminalId);
+    if (!session) return;
+
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const cmd = input.value;
+      input.value = '';
+      await submitTerminalCommand(cmd);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (!session.history.length) return;
+      session.historyIdx = Math.min(session.historyIdx + 1, session.history.length - 1);
+      input.value = session.history[session.historyIdx];
+      setTimeout(() => { input.selectionStart = input.selectionEnd = input.value.length; }, 0);
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (session.historyIdx <= 0) {
+        session.historyIdx = -1;
+        input.value = '';
+        return;
+      }
+      session.historyIdx--;
+      input.value = session.history[session.historyIdx];
+    }
+  });
 }
 
 // ── 脚本运行 ─────────────────────────────────
@@ -1420,7 +1553,11 @@ function dispatchMenuAction(action) {
         $('#terminal-resizer').style.display = 'none';
       } else {
         if (state.terminalSessions.length === 0) createTerminalSession();
-        else ensureTerminalVisible();
+        else {
+          ensureTerminalVisible();
+          renderTerminalInput();
+          setTimeout(() => focusTerminalInput(), 50);
+        }
       }
       break;
     }
@@ -1792,6 +1929,7 @@ function init() {
   makePreviewResizer();
   makeTerminalResizer();
   bindEvents();
+  initTerminalInput();
 
   listen('tauri://close-requested', async () => {
     await saveSession();

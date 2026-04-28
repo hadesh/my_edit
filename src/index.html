@@ -692,6 +692,35 @@
     .term-line.system  .term-text  { color: var(--text-muted); font-style: italic; }
     .term-line.info    .term-text  { color: var(--accent); }
 
+    #terminal-input-bar {
+      display: flex;
+      align-items: center;
+      padding: 4px 12px;
+      border-top: 1px solid var(--border);
+      background: var(--bg-secondary);
+      flex-shrink: 0;
+      gap: 6px;
+    }
+    #terminal-prompt {
+      color: var(--accent-green);
+      font-family: "JetBrains Mono", "Fira Code", Menlo, monospace;
+      font-size: 12.5px;
+      white-space: nowrap;
+      flex-shrink: 0;
+      user-select: none;
+    }
+    #terminal-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text-primary);
+      font-family: "JetBrains Mono", "Fira Code", Menlo, monospace;
+      font-size: 12.5px;
+      caret-color: var(--text-primary);
+    }
+    #terminal-input::placeholder { color: var(--text-muted); }
+
     /* ── 状态栏 ───────────────────────────────── */
     #statusbar {
       height: var(--statusbar-height);
@@ -1290,6 +1319,10 @@
           </div>
         </div>
         <div id="terminal-output-area"></div>
+        <div id="terminal-input-bar">
+          <span id="terminal-prompt"></span>
+          <input id="terminal-input" type="text" autocomplete="off" spellcheck="false" placeholder="输入命令…" />
+        </div>
       </div>
     </div>
   </div>

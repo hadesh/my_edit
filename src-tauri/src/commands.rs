@@ -312,6 +312,65 @@ pub fn exit_app(app: AppHandle) {
 }
 
 #[tauri::command]
+pub async fn shell_exec(
+    app: AppHandle,
+    id: String,
+    cmd: String,
+    cwd: Option<String>,
+) -> Result<(), String> {
+    let mut command = Command::new("/bin/bash");
+    command.args(["-l", "-c", &cmd]);
+    command.stdout(Stdio::piped());
+    command.stderr(Stdio::piped());
+    command.kill_on_drop(true);
+
+    if let Some(dir) = &cwd {
+        command.current_dir(dir);
+    }
+
+    let mut child = command
+        .spawn()
+        .map_err(|e| format!("启动失败: {}", e))?;
+
+    let stdout = child.stdout.take().ok_or("无法获取 stdout")?;
+    let stderr = child.stderr.take().ok_or("无法获取 stderr")?;
+
+    let event_name = format!("shell-output-{}", id);
+
+    let app1 = app.clone();
+    let ev1 = event_name.clone();
+    let id1 = id.clone();
+    let stdout_task = tokio::spawn(async move {
+        let mut reader = BufReader::new(stdout).lines();
+        while let Ok(Some(line)) = reader.next_line().await {
+            let _ = app1.emit(&ev1, StreamEvent { id: id1.clone(), stream: "stdout".into(), data: line });
+        }
+    });
+
+    let app2 = app.clone();
+    let ev2 = event_name.clone();
+    let id2 = id.clone();
+    let stderr_task = tokio::spawn(async move {
+        let mut reader = BufReader::new(stderr).lines();
+        while let Ok(Some(line)) = reader.next_line().await {
+            let _ = app2.emit(&ev2, StreamEvent { id: id2.clone(), stream: "stderr".into(), data: line });
+        }
+    });
+
+    let _ = tokio::join!(stdout_task, stderr_task);
+    let status = child.wait().await.map_err(|e| format!("等待进程失败: {}", e))?;
+    let exit_code = status.code().unwrap_or(-1);
+
+    let _ = app.emit(&event_name, StreamEvent {
+        id: id.clone(),
+        stream: "exit".into(),
+        data: exit_code.to_string(),
+    });
+
+    Ok(())
+}
+
+#[tauri::command]
 pub fn reveal_in_finder(path: String) -> Result<(), String> {
     std::process::Command::new("open")
         .arg("-R")
