@@ -1749,24 +1749,41 @@ function bindEvents() {
   });
 
   // 菜单栏
+  let _menuBarOpen = false;
+
   $$('.menu-item').forEach(item => {
     item.addEventListener('click', e => {
       e.stopPropagation();
       const cmd = e.target.closest('[data-action]');
       if (cmd) {
         $$('.dropdown-menu.open').forEach(m => m.classList.remove('open'));
+        _menuBarOpen = false;
         dispatchMenuAction(cmd.dataset.action);
         return;
       }
       const dropdown = item.querySelector('.dropdown-menu');
-      $$('.dropdown-menu.open').forEach(m => { if (m !== dropdown) m.classList.remove('open'); });
-      dropdown.classList.toggle('open');
+      const wasOpen = dropdown.classList.contains('open');
+      $$('.dropdown-menu.open').forEach(m => m.classList.remove('open'));
+      if (wasOpen) {
+        _menuBarOpen = false;
+      } else {
+        dropdown.classList.add('open');
+        _menuBarOpen = true;
+      }
+    });
+
+    item.addEventListener('mouseenter', () => {
+      if (!_menuBarOpen) return;
+      const dropdown = item.querySelector('.dropdown-menu');
+      $$('.dropdown-menu.open').forEach(m => m.classList.remove('open'));
+      dropdown.classList.add('open');
     });
   });
 
   // 点击空白关闭菜单/tooltip
   document.addEventListener('click', () => {
     $$('.dropdown-menu.open').forEach(m => m.classList.remove('open'));
+    _menuBarOpen = false;
     $('#context-menu').classList.remove('open');
     $('#curl-tooltip').classList.remove('visible');
   });
@@ -1775,10 +1792,22 @@ function bindEvents() {
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
       $$('.dropdown-menu.open').forEach(m => m.classList.remove('open'));
+      _menuBarOpen = false;
       return;
     }
     const mod = e.metaKey || e.ctrlKey;
     if (!mod) return;
+
+    if (e.metaKey && e.ctrlKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+      e.preventDefault();
+      if (!state.tabs.length) return;
+      const idx = state.tabs.findIndex(t => t.id === state.activeTabId);
+      const next = e.key === 'ArrowLeft'
+        ? (idx - 1 + state.tabs.length) % state.tabs.length
+        : (idx + 1) % state.tabs.length;
+      activateTab(state.tabs[next].id);
+      return;
+    }
 
     if (e.key === 's' && !e.shiftKey) { e.preventDefault(); saveCurrentFile(); }
     else if (e.key === 'S' && e.shiftKey) { e.preventDefault(); saveAs(); }
