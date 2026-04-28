@@ -158,7 +158,8 @@ function initCodeMirror() {
   });
 
   state.cm.on('cursorActivity', updateStatusBar);
-  state.cm.on('mousedown', handleEditorMousedown);
+  state.cm.getWrapperElement().addEventListener('mouseup', () => setTimeout(updateCurlTooltip, 50));
+  state.cm.on('cursorActivity', () => setTimeout(updateCurlTooltip, 50));
 
   $('#editor-placeholder').style.display = 'flex';
   state.cm.getWrapperElement().style.display = 'none';
@@ -1112,8 +1113,8 @@ async function runSelection() {
 
 // ── curl 执行 ────────────────────────────────
 
-function handleEditorMousedown() {
-  setTimeout(updateCurlTooltip, 50);
+function normalizeCurl(raw) {
+  return raw.replace(/\\\n\s*/g, ' ').replace(/\n\s*/g, ' ').trim();
 }
 
 function updateCurlTooltip() {
@@ -1295,7 +1296,7 @@ function dispatchMenuAction(action) {
     case 'run-selection': runSelection(); break;
     case 'run-curl': {
       const sel = state.cm?.getSelection().trim();
-      if (sel) executeCurl(sel);
+      if (sel) executeCurl(normalizeCurl(sel));
       else showToast('请先选中 curl 命令', 'info');
       break;
     }
@@ -1415,7 +1416,8 @@ function bindEvents() {
     const sel = state.cm.getSelection().trim();
     if (!sel) return;
     $('#curl-tooltip').classList.remove('visible');
-    await executeCurl(sel);
+    const normalized = normalizeCurl(sel);
+    await executeCurl(normalized);
   });
 
   // 查找替换工具栏
@@ -1609,8 +1611,6 @@ function init() {
   makePreviewResizer();
   makeTerminalResizer();
   bindEvents();
-
-  state.cm.on('cursorActivity', () => setTimeout(updateCurlTooltip, 50));
 
   listen('tauri://close-requested', async () => {
     await saveSession();
