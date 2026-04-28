@@ -1773,6 +1773,10 @@ function bindEvents() {
 
   // 全局快捷键
   document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      $$('.dropdown-menu.open').forEach(m => m.classList.remove('open'));
+      return;
+    }
     const mod = e.metaKey || e.ctrlKey;
     if (!mod) return;
 
