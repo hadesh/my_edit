@@ -1,3 +1,4 @@
+use base64::{engine::general_purpose, Engine as _};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
@@ -34,6 +35,120 @@ pub struct StreamEvent {
     pub id: String,
     pub stream: String,
     pub data: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ImageData {
+    pub data: String,       // base64 编码的图片数据
+    pub mime: String,       // MIME 类型，如 image/png
+    pub size: u64,          // 文件字节数
+    pub width: u32,         // 图片宽度（像素），0 表示未知
+    pub height: u32,        // 图片高度（像素），0 表示未知
+    pub extension: String,  // 文件扩展名（小写）
+}
+
+#[tauri::command]
+pub fn read_file_base64(path: String) -> Result<ImageData, String> {
+    let p = Path::new(&path);
+    let bytes = fs::read(&path).map_err(|e| format!("读取图片失败: {}", e))?;
+    let size = bytes.len() as u64;
+
+    let extension = p
+        .extension()
+        .map(|e| e.to_string_lossy().to_lowercase())
+        .unwrap_or_default();
+
+    let mime = match extension.as_str() {
+        "jpg" | "jpeg" => "image/jpeg",
+        "png"          => "image/png",
+        "gif"          => "image/gif",
+        "webp"         => "image/webp",
+        "bmp"          => "image/bmp",
+        "ico"          => "image/x-icon",
+        "svg"          => "image/svg+xml",
+        "tiff" | "tif" => "image/tiff",
+        "avif"         => "image/avif",
+        _              => "image/png",
+    }
+    .to_string();
+
+    let data = general_purpose::STANDARD.encode(&bytes);
+
+    // 尝试从 PNG / JPEG 头解析宽高
+    let (width, height) = parse_image_dimensions(&bytes, &extension);
+
+    Ok(ImageData { data, mime, size, width, height, extension })
+}
+
+/// 从字节流解析图片宽高，失败时返回 (0, 0)
+fn parse_image_dimensions(bytes: &[u8], ext: &str) -> (u32, u32) {
+    match ext {
+        "png" => {
+            // PNG 签名 8 字节，IHDR chunk: 4(len) + 4(type) + 4(width) + 4(height)
+            if bytes.len() >= 24 {
+                let w = u32::from_be_bytes([bytes[16], bytes[17], bytes[18], bytes[19]]);
+                let h = u32::from_be_bytes([bytes[20], bytes[21], bytes[22], bytes[23]]);
+                return (w, h);
+            }
+        }
+        "jpg" | "jpeg" => {
+            // JPEG SOI marker + 扫描 SOF 段
+            if let Some((w, h)) = parse_jpeg_dimensions(bytes) {
+                return (w, h);
+            }
+        }
+        "gif" => {
+            // GIF87a/GIF89a: 偏移 6–9 为逻辑屏幕宽高（小端序）
+            if bytes.len() >= 10 {
+                let w = u16::from_le_bytes([bytes[6], bytes[7]]) as u32;
+                let h = u16::from_le_bytes([bytes[8], bytes[9]]) as u32;
+                return (w, h);
+            }
+        }
+        "bmp" => {
+            if bytes.len() >= 26 {
+                let w = u32::from_le_bytes([bytes[18], bytes[19], bytes[20], bytes[21]]);
+                let h = i32::from_le_bytes([bytes[22], bytes[23], bytes[24], bytes[25]]).unsigned_abs();
+                return (w, h);
+            }
+        }
+        "webp" => {
+            // VP8（有损）：偏移 26–28 包含宽高（14 位），VP8L/VP8X 略
+            if bytes.len() >= 30 && &bytes[0..4] == b"RIFF" && &bytes[8..12] == b"WEBP" {
+                if &bytes[12..16] == b"VP8 " {
+                    let w = (u16::from_le_bytes([bytes[26], bytes[27]]) & 0x3FFF) as u32 + 1;
+                    let h = (u16::from_le_bytes([bytes[28], bytes[29]]) & 0x3FFF) as u32 + 1;
+                    return (w, h);
+                }
+            }
+        }
+        _ => {}
+    }
+    (0, 0)
+}
+
+fn parse_jpeg_dimensions(bytes: &[u8]) -> Option<(u32, u32)> {
+    if bytes.len() < 2 || bytes[0] != 0xFF || bytes[1] != 0xD8 {
+        return None;
+    }
+    let mut i = 2usize;
+    while i + 3 < bytes.len() {
+        if bytes[i] != 0xFF {
+            break;
+        }
+        let marker = bytes[i + 1];
+        // SOF 段 marker: 0xC0–0xC3, 0xC5–0xC7, 0xC9–0xCB, 0xCD–0xCF
+        if matches!(marker, 0xC0..=0xC3 | 0xC5..=0xC7 | 0xC9..=0xCB | 0xCD..=0xCF) {
+            if i + 9 < bytes.len() {
+                let h = u16::from_be_bytes([bytes[i + 5], bytes[i + 6]]) as u32;
+                let w = u16::from_be_bytes([bytes[i + 7], bytes[i + 8]]) as u32;
+                return Some((w, h));
+            }
+        }
+        let len = u16::from_be_bytes([bytes[i + 2], bytes[i + 3]]) as usize;
+        i += 2 + len;
+    }
+    None
 }
 
 #[tauri::command]

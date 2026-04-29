@@ -31,6 +31,12 @@ const EXT_TO_COLOR = {
   sh: '#89e051', sql: '#e38c00', yaml: '#cb171e',
 };
 
+const IMAGE_EXTS = new Set(['png','jpg','jpeg','gif','webp','bmp','ico','svg','tiff','tif','avif']);
+
+function isImageFile(filename) {
+  return IMAGE_EXTS.has(ext(filename));
+}
+
 const state = {
   tabs: [],
   activeTabId: null,
@@ -188,6 +194,32 @@ function setEditorMode(filename) {
 }
 
 function updateStatusBar() {
+  if (state.activeTabId) {
+    const tab = state.tabs.find(t => t.id === state.activeTabId);
+    if (tab && tab.isImage) {
+      const d = tab.imageData;
+      const sizeStr = d.size < 1024 * 1024
+        ? `${(d.size / 1024).toFixed(1)} KB`
+        : `${(d.size / 1024 / 1024).toFixed(2)} MB`;
+      const dimStr = (d.width && d.height) ? `${d.width} × ${d.height}` : '尺寸未知';
+      $('#status-pos').textContent = `${dimStr}　${sizeStr}　${d.extension.toUpperCase()}`;
+      const el = $('#status-file');
+      const isExternal = tab.path && state.workspaceRoot &&
+        !tab.path.startsWith(state.workspaceRoot + '/') &&
+        tab.path !== state.workspaceRoot;
+      if (isExternal) {
+        el.textContent = '↗ ' + tab.path;
+        el.title = tab.path;
+        el.classList.add('external');
+      } else {
+        el.textContent = basename(tab.path || tab.title);
+        el.title = tab.path || '';
+        el.classList.remove('external');
+      }
+      return;
+    }
+  }
+
   const cursor = state.cm.getCursor();
   $('#status-pos').textContent = `行 ${cursor.line + 1}，列 ${cursor.ch + 1}`;
   if (state.activeTabId) {
@@ -257,15 +289,30 @@ function activateTab(id) {
   if (state.activeTabId) {
     const prev = state.tabs.find(t => t.id === state.activeTabId);
     if (prev) {
-      prev.content = state.cm.getValue();
-      prev.scrollInfo = state.cm.getScrollInfo();
-      prev.cursorPos  = state.cm.getCursor();
+      if (!prev.isImage) {
+        prev.content    = state.cm.getValue();
+        prev.scrollInfo = state.cm.getScrollInfo();
+        prev.cursorPos  = state.cm.getCursor();
+      }
     }
   }
+
+  deactivateImagePreview();
 
   state.activeTabId = id;
   const tab = state.tabs.find(t => t.id === id);
   if (!tab) return;
+
+  if (tab.isImage) {
+    $('#editor-placeholder').style.display = 'none';
+    state.cm.getWrapperElement().style.display = 'none';
+    activateImagePreview(tab);
+    setEditorMode(tab.title);
+    updateStatusBar();
+    renderTabs();
+    saveSession();
+    return;
+  }
 
   $('#editor-placeholder').style.display = 'none';
   state.cm.getWrapperElement().style.display = '';
@@ -305,6 +352,7 @@ function doCloseTab(id) {
 
   if (state.activeTabId === id) {
     state.activeTabId = null;
+    deactivateImagePreview();
     if (state.tabs.length > 0) {
       activateTab(state.tabs[Math.min(idx, state.tabs.length - 1)].id);
     } else {
@@ -387,6 +435,10 @@ function showTabContextMenu(e, tabId) {
 
 async function openFile(filePath) {
   try {
+    if (isImageFile(filePath)) {
+      await openImageTab(filePath);
+      return;
+    }
     const content = await invoke('read_file', { path: filePath });
     openTab(filePath, content);
     const isExternal = state.workspaceRoot &&
@@ -400,10 +452,195 @@ async function openFile(filePath) {
   }
 }
 
+async function openImageTab(filePath) {
+  const existing = state.tabs.find(t => t.path === filePath);
+  if (existing) {
+    activateTab(existing.id);
+    return;
+  }
+  try {
+    const imgData = await invoke('read_file_base64', { path: filePath });
+    const tab = {
+      id: nextId(),
+      path: filePath,
+      title: basename(filePath),
+      content: '',
+      dirty: false,
+      savedContent: '',
+      scrollInfo: null,
+      cursorPos: { line: 0, ch: 0 },
+      isImage: true,
+      imageData: imgData,
+    };
+    state.tabs.push(tab);
+    renderTabs();
+    activateTab(tab.id);
+  } catch (e) {
+    showToast(`打开图片失败: ${e}`, 'error');
+  }
+}
+
+function activateImagePreview(tab) {
+  const panel     = $('#image-preview-panel');
+  const img       = $('#image-preview-img');
+  const indicator = $('#image-zoom-indicator');
+
+  panel.classList.add('active');
+
+  img.src = `data:${tab.imageData.mime};base64,${tab.imageData.data}`;
+
+  let scale = 1;
+  let tx = 0;
+  let ty = 0;
+
+  const ZOOM_STEP = 0.1;
+  const MIN_ZOOM  = 0.05;
+  const MAX_ZOOM  = 16;
+
+  const applyTransform = () => {
+    img.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+  };
+
+  const fitToPanel = () => {
+    const pw = panel.clientWidth;
+    const ph = panel.clientHeight;
+    const iw = img.naturalWidth  || img.clientWidth  || 1;
+    const ih = img.naturalHeight || img.clientHeight || 1;
+    const fit = Math.min(1, pw / iw, ph / ih) * 0.9;
+    scale = fit;
+    tx = (pw - iw * scale) / 2;
+    ty = (ph - ih * scale) / 2;
+    applyTransform();
+  };
+
+  const showIndicator = () => {
+    indicator.textContent = Math.round(scale * 100) + '%';
+    indicator.classList.add('visible');
+    clearTimeout(indicator._hideTimer);
+    indicator._hideTimer = setTimeout(() => indicator.classList.remove('visible'), 1200);
+  };
+
+  img.onload = () => {
+    if (tab.imageData.width === 0 && img.naturalWidth) {
+      tab.imageData.width  = img.naturalWidth;
+      tab.imageData.height = img.naturalHeight;
+    }
+    fitToPanel();
+    updateStatusBar();
+  };
+
+  if (img.complete && img.naturalWidth) {
+    fitToPanel();
+  }
+
+  panel.onwheel = (e) => {
+    if (!e.metaKey && !e.ctrlKey) return;
+    e.preventDefault();
+
+    const rect    = panel.getBoundingClientRect();
+    const mouseX  = e.clientX - rect.left;
+    const mouseY  = e.clientY - rect.top;
+
+    const prevScale = scale;
+    const factor = e.deltaY < 0 ? (1 + ZOOM_STEP) : (1 - ZOOM_STEP);
+    scale = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, scale * factor));
+
+    tx = mouseX - (mouseX - tx) * (scale / prevScale);
+    ty = mouseY - (mouseY - ty) * (scale / prevScale);
+
+    applyTransform();
+    showIndicator();
+  };
+
+  const CLICK_THRESHOLD = 4;
+  const ZOOM_IN_SCALE   = 2;
+  let dragStart  = null;
+  let dragOrigin = null;
+  let didDrag    = false;
+
+  panel.onmousedown = (e) => {
+    if (e.button !== 0) return;
+    dragStart  = { x: e.clientX, y: e.clientY };
+    dragOrigin = { tx, ty };
+    didDrag    = false;
+    e.preventDefault();
+  };
+
+  panel._onMouseMove = (e) => {
+    if (!dragStart) return;
+    const dx = e.clientX - dragStart.x;
+    const dy = e.clientY - dragStart.y;
+    if (!didDrag && Math.hypot(dx, dy) > CLICK_THRESHOLD) {
+      didDrag = true;
+      panel.classList.add('dragging');
+      panel.style.cursor = '';
+    }
+    if (didDrag) {
+      tx = dragOrigin.tx + dx;
+      ty = dragOrigin.ty + dy;
+      applyTransform();
+    }
+  };
+
+  panel._onMouseUp = (e) => {
+    if (!dragStart) return;
+    panel.classList.remove('dragging');
+    panel.style.cursor = Math.abs(scale - ZOOM_IN_SCALE) < 0.05 ? 'zoom-out' : 'zoom-in';
+    if (!didDrag) {
+      const rect   = panel.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      const prevScale = scale;
+      if (Math.abs(scale - ZOOM_IN_SCALE) < 0.05) {
+        fitToPanel();
+        panel.style.cursor = 'zoom-in';
+      } else {
+        scale = ZOOM_IN_SCALE;
+        tx = mouseX - (mouseX - tx) * (scale / prevScale);
+        ty = mouseY - (mouseY - ty) * (scale / prevScale);
+        applyTransform();
+        panel.style.cursor = 'zoom-out';
+      }
+      showIndicator();
+    }
+    dragStart = null;
+  };
+
+  document.addEventListener('mousemove', panel._onMouseMove);
+  document.addEventListener('mouseup',   panel._onMouseUp);
+
+  panel.ondblclick = () => {
+    fitToPanel();
+    panel.style.cursor = 'zoom-in';
+    showIndicator();
+  };
+}
+
+function deactivateImagePreview() {
+  const panel = $('#image-preview-panel');
+  const img   = $('#image-preview-img');
+
+  if (panel._onMouseMove) {
+    document.removeEventListener('mousemove', panel._onMouseMove);
+    document.removeEventListener('mouseup',   panel._onMouseUp);
+    panel._onMouseMove = null;
+    panel._onMouseUp   = null;
+  }
+
+  panel.classList.remove('active');
+  panel.onwheel     = null;
+  panel.onmousedown = null;
+  panel.ondblclick  = null;
+  img.src           = '';
+  img.onload        = null;
+  img.style.transform = '';
+}
+
 async function saveCurrentFile() {
   if (!state.activeTabId) return;
   const tab = state.tabs.find(t => t.id === state.activeTabId);
   if (!tab) return;
+  if (tab.isImage) return;
 
   const content = state.cm.getValue();
 

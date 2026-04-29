@@ -1170,6 +1170,52 @@
       color: var(--text-primary);
       margin-left: 3px;
     }
+
+    /* ── 图片预览面板 ─────────────────────────── */
+    #image-preview-panel {
+      display: none;
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(45deg, #2a2a3a 25%, transparent 25%),
+        linear-gradient(-45deg, #2a2a3a 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #2a2a3a 75%),
+        linear-gradient(-45deg, transparent 75%, #2a2a3a 75%);
+      background-size: 20px 20px;
+      background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+      background-color: #1e1e2e;
+      overflow: hidden;
+      cursor: zoom-in;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    #image-preview-panel.active { display: block; }
+    #image-preview-panel.dragging { cursor: grabbing; }
+    #image-preview-img {
+      position: absolute;
+      display: block;
+      transform-origin: 0 0;
+      border-radius: 2px;
+      box-shadow: 0 4px 32px rgba(0,0,0,0.6);
+      pointer-events: none;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    #image-zoom-indicator {
+      position: absolute;
+      bottom: 12px;
+      right: 16px;
+      background: rgba(0,0,0,0.55);
+      color: var(--text-secondary);
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s;
+      z-index: 10;
+    }
+    #image-zoom-indicator.visible { opacity: 1; }
   </style>
 </head>
 <body>
@@ -1290,6 +1336,10 @@
             </div>
           </div>
           <textarea id="cm-editor"></textarea>
+          <div id="image-preview-panel">
+            <img id="image-preview-img" src="" alt="" draggable="false">
+            <div id="image-zoom-indicator">100%</div>
+          </div>
         </div>
 
         <!-- 拖拽分隔线 -->
