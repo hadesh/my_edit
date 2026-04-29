@@ -393,6 +393,84 @@ function renderTabs() {
       e.preventDefault();
       showTabContextMenu(e, tab.id);
     });
+
+    // ── tab 拖拽排序（mouse 事件模拟，避免 Tauri WebView 劫持 HTML5 drag API）
+    el.addEventListener('mousedown', e => {
+      if (e.button !== 0) return;
+      if (e.target.classList.contains('tab-close')) return;
+
+      const DRAG_THRESHOLD = 5;
+      const startX = e.clientX;
+      let dragging = false;
+      let ghost = null;
+      let dropTarget = null;
+
+      const onMove = (me) => {
+        window.getSelection()?.removeAllRanges();
+        if (!dragging) {
+          if (Math.abs(me.clientX - startX) < DRAG_THRESHOLD) return;
+          dragging = true;
+          document.body.style.userSelect = 'none';
+          el.classList.add('tab-dragging');
+          ghost = document.createElement('div');
+          ghost.className = 'tree-drag-ghost';
+          ghost.textContent = tab.title;
+          document.body.appendChild(ghost);
+        }
+
+        ghost.style.left = me.clientX + 12 + 'px';
+        ghost.style.top  = me.clientY + 4 + 'px';
+
+        if (dropTarget) {
+          dropTarget.el.classList.remove('tab-drop-before', 'tab-drop-after');
+          dropTarget = null;
+        }
+
+        ghost.style.display = 'none';
+        const below = document.elementFromPoint(me.clientX, me.clientY);
+        ghost.style.display = '';
+        const targetTab = below?.closest('.tab');
+        if (targetTab && targetTab !== el) {
+          const rect = targetTab.getBoundingClientRect();
+          const pos = me.clientX < rect.left + rect.width / 2 ? 'before' : 'after';
+          targetTab.classList.add(pos === 'before' ? 'tab-drop-before' : 'tab-drop-after');
+          dropTarget = { el: targetTab, pos };
+        }
+      };
+
+      const onUp = () => {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+
+        if (!dragging) return;
+
+        document.body.style.userSelect = '';
+        el.classList.remove('tab-dragging');
+        if (ghost) { ghost.remove(); ghost = null; }
+        if (dropTarget) {
+          dropTarget.el.classList.remove('tab-drop-before', 'tab-drop-after');
+        }
+
+        if (!dropTarget) return;
+
+        const srcIdx = state.tabs.findIndex(t => t.id === tab.id);
+        const dstId  = dropTarget.el.dataset.id;
+        let   dstIdx = state.tabs.findIndex(t => t.id === dstId);
+        if (srcIdx === -1 || dstIdx === -1 || srcIdx === dstIdx) return;
+
+        const [moved] = state.tabs.splice(srcIdx, 1);
+        dstIdx = state.tabs.findIndex(t => t.id === dstId);
+        state.tabs.splice(dropTarget.pos === 'before' ? dstIdx : dstIdx + 1, 0, moved);
+
+        renderTabs();
+        activateTab(tab.id);
+        saveSession();
+      };
+
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+
     list.appendChild(el);
   });
   const activeEl = list.querySelector('.tab.active');
