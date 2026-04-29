@@ -1228,16 +1228,6 @@ function renderMarkdownPreview(content) {
 }
 
 function togglePreview() {
-  const tab = state.tabs.find(t => t.id === state.activeTabId);
-  if (!tab) return;
-
-  const e = ext(tab.title);
-  const supported = ['md', 'markdown', 'json'].includes(e);
-  if (!supported) {
-    showToast('当前文件类型不支持预览（支持 .md / .json）', 'info');
-    return;
-  }
-
   const panel = $('#preview-panel');
   const resizer = $('#preview-resizer');
   const isVisible = panel.classList.contains('visible');
@@ -1245,13 +1235,21 @@ function togglePreview() {
   if (isVisible) {
     panel.classList.remove('visible');
     resizer.style.display = 'none';
-  } else {
-    panel.classList.add('visible');
-    resizer.style.display = '';
-    const label = e === 'json' ? 'JSON 预览' : 'Markdown 预览';
-    $('#preview-label').textContent = label;
-    updatePreview();
+    return;
   }
+
+  const tab = state.tabs.find(t => t.id === state.activeTabId);
+  if (!tab) return;
+  const e = ext(tab.title);
+  if (!['md', 'markdown', 'json'].includes(e)) {
+    showToast('当前文件类型不支持预览（支持 .md / .json）', 'info');
+    return;
+  }
+
+  panel.classList.add('visible');
+  resizer.style.display = '';
+  $('#preview-label').textContent = e === 'json' ? 'JSON 预览' : 'Markdown 预览';
+  updatePreview();
 }
 
 // ── 终端 ─────────────────────────────────────
@@ -1911,6 +1909,7 @@ function makeSidebarResizer() {
   let startX, startW;
 
   resizer.addEventListener('mousedown', e => {
+    e.preventDefault();
     startX = e.clientX;
     startW = sidebar.offsetWidth;
     resizer.classList.add('dragging');
@@ -1927,6 +1926,7 @@ function makeSidebarResizer() {
     resizer.classList.remove('dragging');
     document.removeEventListener('mousemove', onMove);
     document.removeEventListener('mouseup', onUp);
+    state.cm?.focus();
   }
 }
 
@@ -1936,6 +1936,7 @@ function makePreviewResizer() {
   let startX, startW;
 
   resizer.addEventListener('mousedown', e => {
+    e.preventDefault();
     startX = e.clientX;
     startW = preview.offsetWidth;
     resizer.classList.add('dragging');
@@ -1952,6 +1953,7 @@ function makePreviewResizer() {
     resizer.classList.remove('dragging');
     document.removeEventListener('mousemove', onMove);
     document.removeEventListener('mouseup', onUp);
+    state.cm?.focus();
   }
 }
 
@@ -1961,6 +1963,7 @@ function makeTerminalResizer() {
   let startY, startH;
 
   resizer.addEventListener('mousedown', e => {
+    e.preventDefault();
     startY = e.clientY;
     startH = terminal.offsetHeight;
     resizer.classList.add('dragging');
@@ -1976,6 +1979,7 @@ function makeTerminalResizer() {
     resizer.classList.remove('dragging');
     document.removeEventListener('mousemove', onMove);
     document.removeEventListener('mouseup', onUp);
+    state.cm?.focus();
   }
 }
 
