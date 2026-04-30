@@ -1,0 +1,90 @@
+/* TitleBar 样式 - 从 index.html.bak 提取 */
+
+/* 标题栏容器 */
+.titleBar {
+  height: var(--titlebar-height);
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  user-select: none;
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+/* 菜单栏 */
+.menuBar {
+  display: flex;
+  gap: 2px;
+}
+
+/* 菜单项 */
+.menuItem {
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 12px;
+  position: relative;
+}
+
+.menuItem:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* 下拉菜单 */
+.dropdownMenu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 200px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px;
+  z-index: 1000;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  display: none;
+}
+
+.dropdownMenuOpen {
+  display: block;
+}
+
+/* 菜单分隔线 */
+.menuSep {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+/* 菜单命令项 */
+.menuCmd {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text-primary);
+  font-size: 12px;
+  gap: 24px;
+}
+
+.menuCmd:hover {
+  background: var(--bg-hover);
+}
+
+/* 快捷键提示 */
+.shortcut {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+/* 禁用状态 */
+.menuCmdDisabled {
+  opacity: 0.4;
+  pointer-events: none;
+}

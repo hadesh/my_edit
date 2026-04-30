@@ -1,0 +1,40 @@
+.contextMenu {
+  position: fixed;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px;
+  z-index: 9999;
+  min-width: 160px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.ctxItem {
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text-primary);
+  font-size: 12px;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.ctxItem:hover {
+  background: var(--bg-hover);
+}
+
+.ctxItemDanger {
+  composes: ctxItem;
+}
+
+.ctxItemDanger:hover {
+  background: rgba(243, 139, 168, 0.15);
+  color: var(--accent-red);
+}
+
+.ctxSep {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}

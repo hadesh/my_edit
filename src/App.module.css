@@ -1,0 +1,282 @@
+/* App.module.css - App 组件样式 */
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.mainArea {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.sidebar {
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex-shrink: 00;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.sidebar * {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.editorArea {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.editorPreview {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.editorWrapper {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.previewPanel {
+  background: var(--bg-primary);
+  border-left: 1px solid var(--border);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Resizer 样式 */
+.resizer {
+  width: 4px;
+  background: transparent;
+  cursor: col-resize;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.resizer:hover,
+.resizerDragging {
+  background: var(--accent);
+}
+
+.resizerH {
+  height: 4px;
+  width: 100%;
+  cursor: row-resize;
+  background: transparent;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.resizerH:hover,
+.resizerH.dragging {
+  background: var(--accent);
+}
+
+.sidebarResizer {
+  width: 4px;
+  background: transparent;
+  cursor: col-resize;
+  flex-shrink: 0;
+  transition: background 0.15s;
+  position: relative;
+  z-index: 1;
+}
+
+.sidebarResizer:hover,
+.sidebarResizerDragging {
+  background: var(--accent);
+}
+
+.previewResizer {
+  width: 4px;
+  background: transparent;
+  cursor: col-resize;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.previewResizer:hover,
+.previewResizerDragging {
+  background: var(--accent);
+}
+
+.terminalResizer {
+  height: 4px;
+  width: 100%;
+  cursor: row-resize;
+  background: transparent;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.terminalResizer:hover,
+.terminalResizerDragging {
+  background: var(--accent);
+}
+
+/* Toast 容器 */
+.toastContainer {
+  position: fixed;
+  bottom: 36px;
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 9000;
+  pointer-events: none;
+}
+
+.toast {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 12.5px;
+  color: var(--text-primary);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  animation: toast-in 0.2s ease;
+  max-width: 320px;
+  pointer-events: auto;
+}
+
+.toastSuccess {
+  border-left: 3px solid var(--accent-green);
+}
+
+.toastError {
+  border-left: 3px solid var(--accent-red);
+}
+
+.toastInfo {
+  border-left: 3px solid var(--accent);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Modal 样式 */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 8000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 24px;
+  min-width: 320px;
+  max-width: 480px;
+  width: 90%;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+}
+
+.modal h3 {
+  margin-bottom: 16px;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+
+.modal label {
+  display: block;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.modal input[type="text"] {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  outline: none;
+  margin-bottom: 16px;
+}
+
+.modal input[type="text"]:focus {
+  border-color: var(--accent);
+  background: var(--bg-primary);
+}
+
+.modalBtns {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.btnPrimary {
+  padding: 6px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--accent);
+  cursor: pointer;
+  font-size: 12.5px;
+  transition: all 0.15s ease;
+  background: var(--accent);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.btnPrimary:hover {
+  filter: brightness(1.15);
+}
+
+.btnGhost {
+  padding: 6px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  font-size: 12.5px;
+  transition: all 0.15s ease;
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.btnGhost:hover {
+  background: var(--bg-active);
+}
+
+.btnDanger {
+  padding: 6px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--accent-red);
+  cursor: pointer;
+  font-size: 12.5px;
+  transition: all 0.15s ease;
+  background: rgba(241,76,76,0.15);
+  color: var(--accent-red);
+}
+
+.btnDanger:hover {
+  background: rgba(241,76,76,0.25);
+}

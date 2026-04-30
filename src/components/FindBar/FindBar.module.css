@@ -1,0 +1,106 @@
+.findBar {
+  background: var(--bg-secondary, #181825);
+  border-bottom: 1px solid var(--border, #313244);
+  padding: 6px 12px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.input {
+  background: var(--bg-input, #2a2a3e);
+  border: 1px solid var(--border, #313244);
+  color: var(--text-primary, #e8eaed);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  outline: none;
+  min-width: 160px;
+}
+
+.input:focus {
+  border-color: var(--accent, #569cd6);
+  background: var(--bg-primary, #1e1e2e);
+}
+
+.separator {
+  color: var(--border, #313244);
+  user-select: none;
+}
+
+.optionsGroup {
+  display: flex;
+  gap: 4px;
+}
+
+.optionBtn {
+  padding: 3px 10px;
+  border: 1px solid var(--border, #313244);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-secondary, #b4b4b4);
+  cursor: pointer;
+  font-size: 11.5px;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.optionBtn:hover {
+  background: var(--bg-hover, #313244);
+  color: var(--text-primary, #e8eaed);
+}
+
+.optionBtn.active {
+  background: var(--accent, #569cd6);
+  color: #ffffff;
+  border-color: var(--accent, #569cd6);
+}
+
+.actionsGroup {
+  display: flex;
+  gap: 4px;
+}
+
+.actionBtn {
+  padding: 3px 10px;
+  border: 1px solid var(--border, #313244);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-secondary, #b4b4b4);
+  cursor: pointer;
+  font-size: 11.5px;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.actionBtn:hover {
+  background: var(--bg-hover, #313244);
+  color: var(--text-primary, #e8eaed);
+}
+
+.matchCount {
+  color: var(--text-muted, #7a7a7a);
+  font-size: 11px;
+  min-width: 60px;
+  text-align: center;
+  user-select: none;
+}
+
+.closeBtn {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--text-muted, #7a7a7a);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.closeBtn:hover {
+  color: var(--text-primary, #e8eaed);
+  background: var(--bg-hover, #313244);
+}

@@ -1,0 +1,242 @@
+.previewPanel {
+  width: 45%;
+  background: var(--bg-primary);
+  border-left: 1px solid var(--border);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.previewHeader {
+  height: 32px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.fileType {
+  margin-left: auto;
+  margin-right: 8px;
+  padding: 2px 6px;
+  background: rgba(86, 156, 214, 0.2);
+  color: var(--accent);
+  border-radius: 3px;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.closeBtn {
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.closeBtn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.previewContent {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 32px;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+  line-height: 1.7;
+  color: var(--text-primary);
+}
+
+.previewContent::-webkit-scrollbar {
+  width: 6px;
+}
+
+.previewContent::-webkit-scrollbar-thumb {
+  background: var(--bg-active);
+  border-radius: 3px;
+}
+
+/* Markdown 样式 */
+.markdownContent h1,
+.markdownContent h2,
+.markdownContent h3,
+.markdownContent h4,
+.markdownContent h5,
+.markdownContent h6 {
+  color: var(--text-primary);
+  margin: 1.2em 0 0.5em;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.markdownContent h1 {
+  font-size: 2em;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.3em;
+}
+
+.markdownContent h2 {
+  font-size: 1.5em;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.2em;
+}
+
+.markdownContent h3 {
+  font-size: 1.25em;
+}
+
+.markdownContent h4 {
+  font-size: 1.1em;
+}
+
+.markdownContent p {
+  margin: 0.7em 0;
+}
+
+.markdownContent code {
+  background: var(--bg-secondary);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-family: 'JetBrains Mono', Menlo, monospace;
+  font-size: 0.87em;
+  color: var(--accent-orange);
+}
+
+.markdownContent pre {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 16px;
+  overflow-x: auto;
+  margin: 1em 0;
+}
+
+.markdownContent pre code {
+  background: none;
+  padding: 0;
+  color: var(--text-primary);
+  font-size: 0.88em;
+}
+
+.markdownContent blockquote {
+  border-left: 3px solid var(--accent);
+  padding-left: 16px;
+  margin: 1em 0;
+  color: var(--text-secondary);
+}
+
+.markdownContent a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.markdownContent a:hover {
+  text-decoration: underline;
+}
+
+.markdownContent table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1em 0;
+}
+
+.markdownContent th,
+.markdownContent td {
+  border: 1px solid var(--border);
+  padding: 6px 12px;
+}
+
+.markdownContent th {
+  background: var(--bg-secondary);
+  font-weight: 600;
+}
+
+.markdownContent tr:nth-child(even) {
+  background: rgba(49, 50, 68, 0.3);
+}
+
+.markdownContent ul,
+.markdownContent ol {
+  padding-left: 1.5em;
+  margin: 0.5em 0;
+}
+
+.markdownContent li {
+  margin: 0.3em 0;
+}
+
+.markdownContent hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 1.5em 0;
+}
+
+.markdownContent img {
+  max-width: 100%;
+  border-radius: 6px;
+}
+
+/* JSON 样式 */
+.jsonContent {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 16px;
+  margin: 0;
+  overflow-x: auto;
+  font-family: 'JetBrains Mono', Menlo, monospace;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.jsonContent code {
+  font-family: 'JetBrains Mono', Menlo, monospace;
+}
+
+/* JSON 语法高亮颜色 */
+.jsonKey {
+  color: var(--accent);
+}
+
+.jsonString {
+  color: var(--accent-green);
+}
+
+.jsonNumber {
+  color: var(--accent-orange);
+}
+
+.jsonBool {
+  color: var(--accent-purple);
+}
+
+.jsonNull {
+  color: var(--text-muted);
+}
+
+/* 空状态 */
+.emptyState {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 14px;
+  padding: 48px 24px;
+  line-height: 2;
+}
+
+.emptyHint {
+  font-size: 12px;
+  color: var(--text-secondary);
+}

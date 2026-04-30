@@ -1,0 +1,91 @@
+/* StatusBar 样式 - 从 index.html.bak 和 global.css 提取 */
+
+/* 状态栏容器 */
+.statusBar {
+  height: var(--statusbar-height);
+  background: var(--bg-tertiary);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 16px;
+  flex-shrink: 0;
+  user-select: none;
+  font-family: "SF Mono", "JetBrains Mono", Menlo, monospace; /* 专业代码编辑器风格 */
+}
+
+/* 状态项基础样式 */
+.statusItem {
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: default;
+  white-space: nowrap;
+}
+
+/* 可点击状态项 */
+.clickable {
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.clickable:hover {
+  color: var(--text-primary);
+}
+
+/* 文件路径显示（direction: rtl 实现从左截断） */
+.statusFile {
+  max-width: 420px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: left;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif; /* 路径使用系统字体 */
+}
+
+/* 外部文件（橙色标记） */
+.external {
+  color: #e8a96a; /* 与原实现一致 */
+}
+
+/* 右侧状态项组 */
+.statusRight {
+  margin-left: auto;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+/* 字体缩放按钮 */
+.zoomBtn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  transition: color 0.15s ease;
+}
+
+.zoomBtn:hover:not(:disabled) {
+  color: var(--accent);
+}
+
+.zoomBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* 字体大小显示 */
+.fontSizeText {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin: 0 2px;
+  min-width: 24px;
+  text-align: center;
+}

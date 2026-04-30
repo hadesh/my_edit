@@ -1,0 +1,159 @@
+.tabsBar {
+  height: var(--tab-height, 36px);
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: flex-end;
+  overflow-x: auto;
+  overflow-y: hidden;
+  flex-shrink: 0;
+}
+
+.tabsBar::-webkit-scrollbar {
+  height: 0;
+}
+
+.tabsList {
+  display: flex;
+  height: 100%;
+}
+
+.emptyState {
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+  padding: 0 12px;
+  min-width: 100px;
+  max-width: 180px;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  border-right: 1px solid var(--border);
+  background: var(--bg-tertiary);
+  user-select: none;
+  position: relative;
+  flex-shrink: 0;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.tab:hover {
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+}
+
+.tabActive {
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--bg-primary);
+}
+
+.tabDirty {
+  /* dirty 状态的 Tab 会通过 ::after 伪元素显示橙色圆点 */
+}
+
+.tabDirty::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  width: 6px;
+  height: 6px;
+  background-color: var(--accent-orange, #ce9178);
+  border-radius: 50%;
+}
+
+.tabLangDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.tabName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.tabClose {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s ease, background-color 0.15s ease;
+}
+
+.tab:hover .tabClose,
+.tabActive .tabClose {
+  opacity: 0.6;
+}
+
+.tabClose:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  opacity: 1 !important;
+}
+
+.tabDirtyIndicator {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+}
+
+/* 拖拽时的视觉指示器 */
+.tabDropBefore::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--accent);
+  pointer-events: none;
+}
+
+.tabDropAfter::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--accent);
+  pointer-events: none;
+}
+
+/* 拖拽时的幽灵元素 */
+.tabGhost {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9999;
+  padding: 4px 12px;
+  background: var(--bg-active);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  opacity: 0.9;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}

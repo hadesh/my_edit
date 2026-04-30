@@ -1,19 +1,54 @@
 {
   "name": "myedit",
   "version": "1.0.0",
-  "description": "A powerful text editor built with Tauri v2",
+  "description": "A powerful text editor built with Tauri v2 + React",
   "scripts": {
-    "dev": "PATH=\"$HOME/.cargo/bin:$PATH\" tauri dev",
-    "build": "PATH=\"$HOME/.cargo/bin:$PATH\" tauri build",
-    "tauri": "tauri"
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "tauri": "PATH=\"$HOME/.cargo/bin:$PATH\" tauri",
+    "tauri:dev": "PATH=\"$HOME/.cargo/bin:$PATH\" tauri dev",
+    "tauri:build": "PATH=\"$HOME/.cargo/bin:$PATH\" tauri build"
   },
   "dependencies": {
+    "@codemirror/autocomplete": "^6.20.1",
+    "@codemirror/commands": "^6.7.1",
+    "@codemirror/fold": "^0.19.4",
+    "@codemirror/lang-cpp": "^6.0.2",
+    "@codemirror/lang-css": "^6.3.1",
+    "@codemirror/lang-go": "^6.0.1",
+    "@codemirror/lang-html": "^6.4.9",
+    "@codemirror/lang-java": "^6.0.1",
+    "@codemirror/lang-javascript": "^6.2.2",
+    "@codemirror/lang-json": "^6.0.1",
+    "@codemirror/lang-markdown": "^6.3.1",
+    "@codemirror/lang-python": "^6.1.7",
+    "@codemirror/lang-rust": "^6.0.1",
+    "@codemirror/lang-sql": "^6.8.0",
+    "@codemirror/lang-xml": "^6.1.0",
+    "@codemirror/lang-yaml": "^6.1.2",
+    "@codemirror/language": "^6.10.8",
+    "@codemirror/legacy-modes": "^6.5.2",
+    "@codemirror/search": "^6.5.8",
+    "@codemirror/state": "^6.5.0",
+    "@codemirror/theme-one-dark": "^6.1.2",
+    "@codemirror/view": "^6.35.3",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-dialog": "^2",
     "@tauri-apps/plugin-fs": "^2",
-    "@tauri-apps/plugin-shell": "^2"
+    "@tauri-apps/plugin-shell": "^2",
+    "highlight.js": "^11.10.0",
+    "marked": "^12.0.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zustand": "^4.5.4"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2"
+    "@tauri-apps/cli": "^2",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11"
   }
 }

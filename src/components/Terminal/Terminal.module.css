@@ -1,0 +1,272 @@
+/* ── 终端容器 ──────────────────────────────── */
+.terminalContainer {
+  height: 220px;
+  background: var(--bg-tertiary);
+  border-top: 1px solid var(--border);
+  display: none;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.terminalContainer.visible {
+  display: flex;
+}
+
+/* ── 终端头部（标签栏 + 工具栏）────────────── */
+.terminalHeader {
+  height: 32px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* ── 标签栏 ────────────────────────────────── */
+.terminalTabs {
+  display: flex;
+  flex: 1;
+  gap: 2px;
+  overflow-x: auto;
+}
+
+.terminalTabs::-webkit-scrollbar {
+  height: 0;
+}
+
+.termTab {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.termTab:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.termTab.active {
+  background: var(--bg-active);
+  color: var(--text-primary);
+}
+
+.termTabClose {
+  font-size: 11px;
+  cursor: pointer;
+  opacity: 0.5;
+}
+
+.termTabClose:hover {
+  opacity: 1;
+}
+
+/* ── 新建会话按钮 ──────────────────────────── */
+.termAddBtn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.termAddBtn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* ── 工具栏 ─────────────────────────────────── */
+.terminalActions {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.termActionBtn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.termActionBtn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.termActionBtn.active {
+  color: var(--accent-red);
+}
+
+/* ── 输出区域 ───────────────────────────────── */
+.terminalOutput {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 12px;
+  font-family: "JetBrains Mono", "Fira Code", Menlo, monospace;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.terminalOutput::-webkit-scrollbar {
+  width: 4px;
+}
+
+.terminalOutput::-webkit-scrollbar-thumb {
+  background: var(--bg-active);
+  border-radius: 2px;
+}
+
+/* ── 输出行 ─────────────────────────────────── */
+.termLine {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.termPrefix {
+  color: var(--text-muted);
+  flex-shrink: 0;
+  font-size: 11px;
+  margin-top: 1px;
+}
+
+.termText {
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.stderr {
+  color: var(--accent-red);
+}
+
+.exitOk {
+  color: var(--accent-green);
+}
+
+.exitErr {
+  color: var(--accent-red);
+}
+
+.system {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.info {
+  color: var(--accent);
+}
+
+.success {
+  color: var(--accent-green);
+}
+
+/* ── ANSI 颜色码解析样式 ────────────────────── */
+.ansiBlack {
+  color: #1e1e2e;
+}
+
+.ansiRed {
+  color: #f14c4c;
+}
+
+.ansiGreen {
+  color: #4ec9b0;
+}
+
+.ansiYellow {
+  color: #dcdcaa;
+}
+
+.ansiBlue {
+  color: #569cd6;
+}
+
+.ansiMagenta {
+  color: #c586c0;
+}
+
+.ansiCyan {
+  color: #6a9fb5;
+}
+
+.ansiWhite {
+  color: #e8eaed;
+}
+
+.ansiBold {
+  font-weight: 600;
+}
+
+/* ── 标签栏元素 ─────────────────────────────── */
+.termTabClose {
+  font-size: 11px;
+  cursor: pointer;
+  opacity: 0.5;
+}
+
+.termTabClose:hover {
+  opacity: 1;
+}
+
+/* ── 工具栏按钮激活状态 ─────────────────────── */
+.termActionBtn.active {
+  color: var(--accent-red);
+}
+
+/* ── 输入栏 ─────────────────────────────────── */
+.terminalInputBar {
+  display: flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-secondary);
+  flex-shrink: 0;
+  gap: 6px;
+}
+
+.terminalPrompt {
+  color: var(--accent-green);
+  font-family: "JetBrains Mono", "Fira Code", Menlo, monospace;
+  font-size: 12.5px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.terminalInput {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-family: "JetBrains Mono", "Fira Code", Menlo, monospace;
+  font-size: 12.5px;
+  caret-color: var(--text-primary);
+}
+
+.terminalInput::placeholder {
+  color: var(--text-muted);
+}

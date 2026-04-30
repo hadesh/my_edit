@@ -1,0 +1,45 @@
+/**
+ * CSS 变量定义 - 深色主题（VS Code Dark+ 风格）
+ * 
+ * 背景层次：tertiary(最深) > secondary(次深) > primary(基础)
+ * 文字层次：primary(最高亮度) > secondary(中等) > muted(暗淡) > disabled(禁用)
+ */
+
+:root {
+  /* 背景层次：tertiary(最深) > secondary(次深) > primary(基础) */
+  --bg-primary:    #1e1e2e;     /* 基础背景 - 编辑器主区域 */
+  --bg-secondary:  #181825;     /* 次级背景 - 侧边栏、面板 */
+  --bg-tertiary:   #11111b;     /* 最深背景 - 标题栏、标签栏 */
+  --bg-hover:      #313244;     /* hover 状态 - 中等亮度 */
+  --bg-active:     #45475a;     /* active 状态 - 较亮 */
+  --bg-input:      #2a2a3e;     /* 输入框背景 */
+  
+  /* 边框颜色 */
+  --border:        #313244;
+  --border-light:  #45475a;
+  
+  /* 文字层次：高对比度确保可读性 */
+  --text-primary:  #e8eaed;     /* 主要文字 - 最高亮度，对比度 11:1 */
+  --text-secondary:#b4b4b4;     /* 次级文字 - 中等亮度 */
+  --text-muted:    #7a7a7a;     /* 暗淡文字 - 用于辅助信息 */
+  --text-disabled: #5a5a5a;     /* 禁用文字 */
+  
+  /* 强调色 - 功能语义化 */
+  --accent:        #569cd6;     /* 蓝色 - 主强调色 */
+  --accent-green:  #4ec9b0;     /* 绿色 - 成功/新增 */
+  --accent-red:    #f14c4c;     /* 红色 - 错误/删除 */
+  --accent-yellow: #dcdcaa;     /* 黄色 - 警告/函数 */
+  --accent-orange: #ce9178;     /* 橙色 - 字符串/数值 */
+  --accent-purple: #c586c0;     /* 紫色 - 关键字 */
+  
+  /* 状态栏专用 */
+  --statusbar-bg:  #007acc;     /* VS Code 蓝色 */
+  --statusbar-text:#ffffff;     /* 状态栏文字 */
+  
+  /* 布局尺寸 */
+  --tab-height:    36px;
+  --sidebar-width: 240px;
+  --terminal-height: 220px;
+  --statusbar-height: 24px;
+  --titlebar-height: 38px;
+}
