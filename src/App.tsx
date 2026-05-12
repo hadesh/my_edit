@@ -11,16 +11,22 @@ import { TitleBar } from './components/TitleBar/TitleBar'
 import { Sidebar } from './components/Sidebar/Sidebar'
 import { TabsBar } from './components/TabsBar/TabsBar'
 import Editor from './components/Editor/Editor'
+import type { EditorRef } from './components/Editor/Editor'
 import { FindBar } from './components/FindBar/FindBar'
 import { Terminal } from './components/Terminal/Terminal'
 import { PreviewPanel } from './components/PreviewPanel/PreviewPanel'
 import { StatusBar } from './components/StatusBar/StatusBar'
+import { FileSearchOverlay } from './components/FileSearchOverlay/FileSearchOverlay'
+import { ShortcutsOverlay } from './components/ShortcutsOverlay/ShortcutsOverlay'
+import { ContextMenu } from './components/ContextMenu/ContextMenu'
+import { TabContextMenu } from './components/TabsBar/TabContextMenu'
 import {
   readFile,
   readFileBase64,
   writeFile,
   readDirTree,
   exitApp,
+  getFileInfo,
 } from './hooks/useIPC'
 import { useTauriEvent } from './hooks/useTauriEvent'
 import { useSession } from './hooks/useSession'
@@ -283,6 +289,9 @@ export default function App() {
   const workspaceRoot = useWorkspaceRoot()
   const findState = useFindState()
 
+  // Editor ref
+  const editorRef = useRef<EditorRef>(null)
+
   // Session 持久化
   const { restoreSession, triggerSaveSession } = useSession()
 
@@ -310,6 +319,29 @@ export default function App() {
   const setFileTreeOrder = useStore((s) => s.setFileTreeOrder)
   const showToast = useStore((s) => s.showToast)
   const showModal = useStore((s) => s.showModal)
+
+  // ── 保存辅助 ─────────────────────────────────────────
+  const saveAsDialog = useCallback(async () => {
+    if (!activeTab || activeTab.isImage) return
+    try {
+      const filePath = await (window as any).__TAURI__.dialog.save({
+        defaultPath: activeTab.title,
+        filters: [{ name: '所有文件', extensions: ['*'] }],
+      })
+      if (filePath) {
+        await writeFile(filePath, activeTab.content)
+        store.updateTab(activeTab.id, {
+          path: filePath,
+          title: basename(filePath),
+          dirty: false,
+          savedContent: activeTab.content,
+        })
+        showToast('已保存', 'success')
+      }
+    } catch (err) {
+      showToast(`另存为失败: ${err}`, 'error')
+    }
+  }, [activeTab, store, showToast])
 
   // ── Resizer 处理 ───────────────────────────────────────
 
@@ -420,8 +452,10 @@ export default function App() {
   // ── CustomEvent 监听 ─────────────────────────────────────
 
   useEffect(() => {
-    const handleOpenFile = (e: CustomEvent<string>) => {
-      openFile(e.detail)
+    const handleOpenFile = (e: CustomEvent) => {
+      const detail = e.detail
+      const path = typeof detail === 'string' ? detail : detail?.path
+      if (path) openFile(path)
     }
 
     const handleMenuAction = async (e: CustomEvent<string>) => {
@@ -535,6 +569,104 @@ export default function App() {
         case 'show-shortcuts':
           store.setShortcutsOpen(true)
           break
+
+        case 'save':
+          if (activeTab && !activeTab.isImage) {
+            if (activeTab.path) {
+              try {
+                await writeFile(activeTab.path, activeTab.content)
+                store.updateTab(activeTab.id, { dirty: false, savedContent: activeTab.content })
+                showToast('已保存', 'success')
+              } catch (err) {
+                showToast(`保存失败: ${err}`, 'error')
+              }
+            } else {
+              await saveAsDialog()
+            }
+          }
+          break
+
+        case 'save-as':
+          await saveAsDialog()
+          break
+
+        case 'close-tab':
+          if (store.activeTabId) {
+            const tab = tabs.find((t) => t.id === store.activeTabId)
+            if (tab?.dirty) {
+              window.dispatchEvent(new CustomEvent('confirm-close-tab', { detail: store.activeTabId }))
+            } else {
+              store.removeTab(store.activeTabId)
+            }
+          }
+          break
+
+        case 'find': {
+          const selF = editorRef.current?.getSelection() || ''
+          setFindState({ isOpen: true, withReplace: false, ...(selF ? { query: selF } : {}) })
+          break
+        }
+
+        case 'replace': {
+          const selR = editorRef.current?.getSelection() || ''
+          setFindState({ isOpen: true, withReplace: true, ...(selR ? { query: selR } : {}) })
+          break
+        }
+
+        case 'file-search':
+          store.setFileSearchOpen(true)
+          break
+
+        case 'format-json':
+        case 'toggle-comment':
+          break
+
+        case 'run-script':
+          if (activeTab?.path) {
+            const ext = getExtension(activeTab.path)
+            if (['py', 'js', 'mjs', 'ts'].includes(ext)) {
+              if (activeTab.dirty && activeTab.path) {
+                try {
+                  await writeFile(activeTab.path, activeTab.content)
+                  store.updateTab(activeTab.id, { dirty: false, savedContent: activeTab.content })
+                } catch (err) {
+                  showToast(`保存失败: ${err}`, 'error')
+                  break
+                }
+              }
+              window.dispatchEvent(
+                new CustomEvent('terminal-action', {
+                  detail: { type: 'run-file', filePath: activeTab.path, language: ext },
+                })
+              )
+            } else {
+              showToast('只支持运行 .py / .js / .ts 文件', 'info')
+            }
+          }
+          break
+
+        case 'run-selection':
+          window.dispatchEvent(new CustomEvent('terminal-action', { detail: { type: 'run-selection' } }))
+          break
+
+        case 'run-curl': {
+          const sel = editorRef.current?.getSelection()?.trim()
+          if (sel && (sel.startsWith('curl ') || sel.startsWith('curl\n'))) {
+            const normalized = sel.replace(/\\\n\s*/g, ' ').replace(/\n\s*/g, ' ').trim()
+            window.dispatchEvent(
+              new CustomEvent('terminal-action', {
+                detail: { type: 'execute-curl', curl: normalized },
+              })
+            )
+          } else {
+            showToast('请先选中 curl 命令', 'info')
+          }
+          break
+        }
+
+        case 'stop-process':
+          showToast('停止功能需要进程 PID 管理，当前版本暂不支持强制 kill', 'info')
+          break
       }
     }
 
@@ -569,6 +701,8 @@ export default function App() {
     triggerSaveSession,
     showModal,
     showToast,
+    setFindState,
+    saveAsDialog,
   ])
 
   // ── Tauri 事件监听 ───────────────────────────────────────
@@ -592,6 +726,27 @@ export default function App() {
     }, [triggerSaveSession])
   )
 
+  // 从 Finder 拖放文件/文件夹
+  useTauriEvent<{ paths?: string[] }>(
+    'tauri://drag-drop',
+    useCallback(async (payload) => {
+      const paths = payload?.paths
+      if (!paths?.length) return
+      for (const p of paths) {
+        try {
+          const info = await getFileInfo(p)
+          if (info.is_dir) {
+            await loadWorkspace(p)
+          } else {
+            await openFile(p)
+          }
+        } catch (err) {
+          showToast(`拖放打开失败: ${err}`, 'error')
+        }
+      }
+    }, [openFile, loadWorkspace, showToast])
+  )
+
   // ── 全局键盘快捷键 ───────────────────────────────────────
 
   useEffect(() => {
@@ -606,19 +761,35 @@ export default function App() {
         return
       }
 
+      // Cmd+Ctrl+Arrow: 循环切换标签页
+      if (e.metaKey && e.ctrlKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+        e.preventDefault()
+        if (!tabs.length) return
+        const idx = tabs.findIndex((t) => t.id === store.activeTabId)
+        const next = e.key === 'ArrowLeft'
+          ? (idx - 1 + tabs.length) % tabs.length
+          : (idx + 1) % tabs.length
+        store.setActiveTabId(tabs[next].id)
+        return
+      }
+
       // 需要 Cmd/Ctrl 的快捷键
       if (!mod) return
 
       // Cmd+S: 保存
-      if (e.key === 's' && !e.shiftKey) {
+      if (e.key === 's' && !e.shiftKey && !e.altKey) {
         e.preventDefault()
-        if (activeTab?.path && !activeTab.isImage) {
-          try {
-            await writeFile(activeTab.path, activeTab.content)
-            store.updateTab(activeTab.id, { dirty: false, savedContent: activeTab.content })
-            showToast('已保存', 'success')
-          } catch (err) {
-            showToast(`保存失败: ${err}`, 'error')
+        if (activeTab && !activeTab.isImage) {
+          if (activeTab.path) {
+            try {
+              await writeFile(activeTab.path, activeTab.content)
+              store.updateTab(activeTab.id, { dirty: false, savedContent: activeTab.content })
+              showToast('已保存', 'success')
+            } catch (err) {
+              showToast(`保存失败: ${err}`, 'error')
+            }
+          } else {
+            await saveAsDialog()
           }
         }
         return
@@ -627,26 +798,7 @@ export default function App() {
       // Cmd+Shift+S: 另存为
       if (e.key === 'S' && e.shiftKey) {
         e.preventDefault()
-        if (activeTab) {
-          try {
-            const filePath = await (window as any).__TAURI__.dialog.save({
-              defaultPath: activeTab.title,
-              filters: [{ name: '所有文件', extensions: ['*'] }],
-            })
-            if (filePath) {
-              await writeFile(filePath, activeTab.content)
-              store.updateTab(activeTab.id, {
-                path: filePath,
-                title: basename(filePath),
-                dirty: false,
-                savedContent: activeTab.content,
-              })
-              showToast('另存为成功', 'success')
-            }
-          } catch (err) {
-            showToast(`另存为失败: ${err}`, 'error')
-          }
-        }
+        await saveAsDialog()
         return
       }
 
@@ -688,14 +840,16 @@ export default function App() {
       // Cmd+F: 查找
       if (e.key === 'f') {
         e.preventDefault()
-        setFindState({ isOpen: true, withReplace: false })
+        const sel = editorRef.current?.getSelection() || ''
+        setFindState({ isOpen: true, withReplace: false, ...(sel ? { query: sel } : {}) })
         return
       }
 
       // Cmd+H: 查找替换
       if (e.key === 'h') {
         e.preventDefault()
-        setFindState({ isOpen: true, withReplace: true })
+        const sel = editorRef.current?.getSelection() || ''
+        setFindState({ isOpen: true, withReplace: true, ...(sel ? { query: sel } : {}) })
         return
       }
 
@@ -841,6 +995,7 @@ export default function App() {
     setFindState,
     showToast,
     writeFile,
+    saveAsDialog,
   ])
 
   // ── 初始化恢复 Session ─────────────────────────────────────
@@ -906,7 +1061,7 @@ export default function App() {
           <FindBar />
           {/* 编辑器 + 预览容器 */}
           <div className={styles.editorPreview}>
-            <Editor className={styles.editorWrapper} />
+            <Editor ref={editorRef} className={styles.editorWrapper} />
             {/* 预览分隔线 */}
             <Resizer
               type="vertical"
@@ -946,6 +1101,18 @@ export default function App() {
 
       {/* 确认关闭对话框 */}
       <ConfirmCloseDialog />
+
+      {/* 文件搜索 */}
+      <FileSearchOverlay />
+
+      {/* 快捷键帮助 */}
+      <ShortcutsOverlay />
+
+      {/* 右键菜单 */}
+      <ContextMenu />
+
+      {/* Tab 右键菜单 */}
+      <TabContextMenu />
     </div>
   )
 }

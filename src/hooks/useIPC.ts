@@ -104,7 +104,7 @@ export const shellExec = (
  * 输出通过 listen(`process-output-${id}`, handler) 接收
  */
 export const executeCurl = (id: string, curlCommand: string): Promise<void> =>
-  invoke('execute_curl', { id, curl_command: curlCommand })
+  invoke('execute_curl', { id, curlCommand })
 
 // ─── 系统操作 ───────────────────────────────────────────────
 

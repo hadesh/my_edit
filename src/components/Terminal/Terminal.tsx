@@ -391,7 +391,7 @@ export const Terminal: React.FC = () => {
           </button>
         </div>
       </div>
-      <div ref={outputRef}>
+      <div ref={outputRef} className={styles.terminalOutput}>
         {activeSession && <TerminalSessionComponent lines={activeSession.lines} />}
       </div>
       <div className={styles.terminalInputBar}>

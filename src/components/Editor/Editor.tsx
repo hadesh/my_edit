@@ -2,7 +2,7 @@
  * Editor 组件 - CodeMirror 6 封装，支持图片预览模式
  */
 
-import React, { useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react'
+import React, { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from 'react'
 import { useActiveTab, useStore } from '../../store'
 import { useCodeMirror } from '../../hooks/useCodeMirror'
 import { getExtension, getLanguageName } from '../../utils/langUtils'
@@ -36,6 +36,7 @@ function basename(path: string): string {
 // Editor 组件对外暴露的方法
 export interface EditorRef {
   focus: () => void
+  getSelection: () => string
 }
 
 interface EditorProps {
@@ -88,7 +89,50 @@ const Editor = forwardRef<EditorRef, EditorProps>((props, ref) => {
   // 暴露 focus 方法给父组件
   useImperativeHandle(ref, () => ({
     focus: () => cm.focus(),
+    getSelection: () => cm.getSelection(),
   }))
+
+  // ── curl 选中浮窗 ──────────────────────────────────────────────
+  const [curlTooltip, setCurlTooltip] = useState<{ top: number; left: number; text: string } | null>(null)
+
+  const checkCurlSelection = useCallback(() => {
+    const sel = cm.getSelection().trim()
+    if (sel && (sel.startsWith('curl ') || sel.startsWith('curl\n'))) {
+      const coords = cm.getCursorCoords()
+      if (coords) {
+        setCurlTooltip({
+          top: coords.bottom + 4,
+          left: coords.left,
+          text: sel.length > 40 ? sel.slice(0, 40) + '…' : sel,
+        })
+        return
+      }
+    }
+    setCurlTooltip(null)
+  }, [cm])
+
+  useEffect(() => {
+    if (!activeTab || activeTab.isImage) {
+      setCurlTooltip(null)
+      return
+    }
+    const container = cm.containerRef.current
+    if (!container) return
+
+    const onMouseUp = () => setTimeout(checkCurlSelection, 10)
+    container.addEventListener('mouseup', onMouseUp)
+    return () => container.removeEventListener('mouseup', onMouseUp)
+  }, [activeTab, cm, checkCurlSelection])
+
+  const handleCurlClick = useCallback(() => {
+    const sel = cm.getSelection().trim()
+    if (!sel) return
+    setCurlTooltip(null)
+    const normalized = sel.replace(/\\\n\s*/g, ' ').replace(/\n\s*/g, ' ').trim()
+    window.dispatchEvent(new CustomEvent('terminal-action', {
+      detail: { type: 'execute-curl', curl: normalized },
+    }))
+  }, [cm])
 
   // Tab 切换时同步编辑器状态
   useEffect(() => {
@@ -347,8 +391,7 @@ const Editor = forwardRef<EditorRef, EditorProps>((props, ref) => {
         
         case 'toggle-comment':
           if (activeTab && !activeTab.isImage) {
-            // TODO: 通过 CodeMirror 6 的 comment toggle 扩展实现
-            // 当前版本暂不支持，需要后续添加 @codemirror/comment 扩展
+            cm.toggleComment()
           }
           break
       }
@@ -379,6 +422,15 @@ const Editor = forwardRef<EditorRef, EditorProps>((props, ref) => {
             <kbd>⌘⇧O</kbd> 打开文件夹　<kbd>⌘S</kbd> 保存<br />
             <kbd>⌘`</kbd> 打开终端　<kbd>⌘F</kbd> 查找
           </div>
+        </div>
+      )}
+      {curlTooltip && (
+        <div
+          className={styles.curlTooltip}
+          style={{ top: curlTooltip.top, left: curlTooltip.left }}
+          onClick={handleCurlClick}
+        >
+          ⚡ 执行 curl
         </div>
       )}
       {activeTab?.isImage && (

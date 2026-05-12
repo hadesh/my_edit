@@ -65,6 +65,8 @@ interface AppActions {
   addTab: (tab: Tab) => void
   addTabAndActivate: (tab: Tab) => void
   removeTab: (id: string) => void
+  closeOtherTabs: (keepId: string) => void
+  closeTabsToRight: (tabId: string) => void
 
   // 工作区
   setWorkspaceRoot: (root: string | null) => void
@@ -201,6 +203,28 @@ export const useStore = create<Store>((set, get) => ({
       newSelectedPath = next?.path ?? null
     }
     return { tabs: newTabs, activeTabId: newActiveId, selectedFilePath: newSelectedPath }
+  }),
+
+  closeOtherTabs: (keepId) => set((state) => {
+    const kept = state.tabs.filter((t) => t.id === keepId)
+    const keptTab = kept[0] ?? null
+    return {
+      tabs: kept,
+      activeTabId: keptTab?.id ?? null,
+      selectedFilePath: keptTab?.path ?? null,
+    }
+  }),
+  closeTabsToRight: (tabId) => set((state) => {
+    const idx = state.tabs.findIndex((t) => t.id === tabId)
+    if (idx === -1) return state
+    const kept = state.tabs.slice(0, idx + 1)
+    const activeStillExists = kept.some((t) => t.id === state.activeTabId)
+    const fallback = kept[kept.length - 1] ?? null
+    return {
+      tabs: kept,
+      activeTabId: activeStillExists ? state.activeTabId : (fallback?.id ?? null),
+      selectedFilePath: activeStillExists ? state.selectedFilePath : (fallback?.path ?? null),
+    }
   }),
 
   // 工作区 actions

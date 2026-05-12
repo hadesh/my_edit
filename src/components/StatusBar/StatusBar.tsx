@@ -31,11 +31,21 @@ export function StatusBar() {
     ? getLanguageName(activeTab.path)
     : 'Plain Text'
 
-  // 光标位置（从 Tab 的 cursorPos 获取）
-  const cursorPos = activeTab?.cursorPos
-  const cursorText = cursorPos
-    ? `行 ${cursorPos.line + 1}，列 ${cursorPos.ch + 1}` // 注意：使用中文逗号
-    : '行 1，列 1'
+  // 光标位置 / 图片元信息
+  let positionText: string
+  if (activeTab?.isImage && activeTab?.imageData) {
+    const d = activeTab.imageData
+    const sizeStr = d.size < 1024 * 1024
+      ? `${(d.size / 1024).toFixed(1)} KB`
+      : `${(d.size / (1024 * 1024)).toFixed(2)} MB`
+    const dimStr = (d.width && d.height) ? `${d.width} × ${d.height}` : '尺寸未知'
+    positionText = `${dimStr}  ${sizeStr}  ${d.extension.toUpperCase()}`
+  } else {
+    const cursorPos = activeTab?.cursorPos
+    positionText = cursorPos
+      ? `行 ${cursorPos.line + 1}，列 ${cursorPos.ch + 1}`
+      : '行 1，列 1'
+  }
 
   // 字体缩放处理
   const handleZoomOut = () => {
@@ -78,7 +88,7 @@ export function StatusBar() {
       {/* 右侧：光标 + 编码 + 行尾 + 字体缩放 */}
       <div className={styles.statusRight}>
         <span className={styles.statusItem}>
-          {cursorText}
+          {positionText}
         </span>
 
         <span className={`${styles.statusItem} ${styles.clickable}`}>

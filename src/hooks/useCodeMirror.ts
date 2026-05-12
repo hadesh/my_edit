@@ -26,7 +26,7 @@ import {
   crosshairCursor,
   highlightSpecialChars,
 } from '@codemirror/view'
-import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands'
+import { defaultKeymap, history, historyKeymap, indentWithTab, toggleComment } from '@codemirror/commands'
 import {
   syntaxHighlighting,
   defaultHighlightStyle,
@@ -156,6 +156,10 @@ export interface UseCodeMirrorReturn {
   setExtension: (ext: string) => void
   /** 设置字体大小 */
   setFontSize: (size: number) => void
+  /** 获取光标屏幕坐标 */
+  getCursorCoords: () => { top: number; left: number; bottom: number } | null
+  /** 切换注释 */
+  toggleComment: () => void
   /** 聚焦编辑器 */
   focus: () => void
 }
@@ -228,6 +232,7 @@ export function useCodeMirror(options: UseCodeMirrorOptions = {}): UseCodeMirror
           ...foldKeymap,
           ...completionKeymap,
           indentWithTab,
+          { key: 'Mod-/', run: toggleComment },
         ]),
 
         // 主题
@@ -331,6 +336,21 @@ export function useCodeMirror(options: UseCodeMirrorOptions = {}): UseCodeMirror
     })
   }, [])
 
+  const getCursorCoords = useCallback((): { top: number; left: number; bottom: number } | null => {
+    const view = viewRef.current
+    if (!view) return null
+    const pos = view.state.selection.main.head
+    const coords = view.coordsAtPos(pos)
+    if (!coords) return null
+    return { top: coords.top, left: coords.left, bottom: coords.bottom }
+  }, [])
+
+  const doToggleComment = useCallback(() => {
+    const view = viewRef.current
+    if (!view) return
+    toggleComment(view)
+  }, [])
+
   const focus = useCallback(() => {
     viewRef.current?.focus()
   }, [])
@@ -346,6 +366,8 @@ export function useCodeMirror(options: UseCodeMirrorOptions = {}): UseCodeMirror
     replaceSelection,
     setExtension,
     setFontSize,
+    getCursorCoords,
+    toggleComment: doToggleComment,
     focus,
   }
 }

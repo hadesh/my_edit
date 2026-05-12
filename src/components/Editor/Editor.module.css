@@ -101,3 +101,22 @@
 .zoomIndicator.visible {
   opacity: 1;
 }
+
+/* curl 选中浮窗 */
+.curlTooltip {
+  position: fixed;
+  background: var(--accent);
+  color: #fff;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.curlTooltip:hover {
+  filter: brightness(1.15);
+}
