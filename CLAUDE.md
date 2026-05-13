@@ -6,6 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 MyEdit is a macOS desktop text editor built with **Tauri v2 + React + TypeScript** (frontend) and **Rust 2021** (backend). The project is currently on the `refactor/react` branch — migrating from a vanilla JS monolith (`src/main.js.bak`, `src/index.html.bak`) to a React + Zustand + CSS Modules architecture.
 
+> ⚠️ **`AGENTS.md` is outdated** — it describes the vanilla JS architecture (corresponding to the `.bak` files) and predates the React refactor. Do not use it as a reference for current code.
+>
+> ⚠️ **`*.bak` files** (`src/main.js.bak`, `src/index.html.bak`) are the legacy vanilla JS implementation kept for reference only. Do not modify them; do not assume their patterns apply to the React code.
+
 ## Commands
 
 ```bash
@@ -36,7 +40,8 @@ No test framework is configured.
 - **IPC layer**: `src/hooks/useIPC.ts` wraps all `window.__TAURI__.core.invoke` calls. Tauri uses `withGlobalTauri: true`, so never `import` from `@tauri-apps/api` — always access via `window.__TAURI__`.
 - **Event bridge**: Components communicate via `window.dispatchEvent(new CustomEvent(...))` for cross-cutting actions (`open-file`, `menu-action`, `save-session`, `terminal-action`, `confirm-close-tab`). `App.tsx` handles routing these events.
 - **Tauri events**: `src/hooks/useTauriEvent.ts` wraps `window.__TAURI__.event.listen` for Rust→JS events (`exit-requested`, `process-output-${id}`, `shell-output-${id}`).
-- **Session**: `src/hooks/useSession.ts` — persists workspace/tabs/scroll to `~/.myedit_session.json` via Rust IPC. Fire-and-forget on tab switch/close; awaited on app exit.
+- **Session**: `src/hooks/useSession.ts` — persists workspace/tabs/scroll to `~/.myedit_session.json` (Rust resolves `$HOME` via `app.path().home_dir()`). Fire-and-forget on tab switch/close; awaited on app exit.
+- **Components**: 13 component directories under `src/components/` — `Editor/`, `Sidebar/`, `TabsBar/`, `Terminal/`, `FindBar/`, `PreviewPanel/`, `FileSearchOverlay/`, `Modal/`, `Toast/`, `ContextMenu/`, `ShortcutsOverlay/`, `StatusBar/`, `TitleBar/`. Each ships its own `*.module.css`.
 - **Styles**: CSS Modules per component (`*.module.css`), global theme variables in `src/styles/variables.css`.
 - **Editor**: CodeMirror 6 via `src/hooks/useCodeMirror.ts`. Language extensions in `src/utils/langUtils.ts`.
 
@@ -45,6 +50,11 @@ No test framework is configured.
 - `src-tauri/src/lib.rs` — Tauri builder, plugin registration, `ExitRequested` interception (prevents immediate exit, emits `exit-requested` to frontend).
 - `src-tauri/src/commands.rs` — All `#[tauri::command]` handlers: file I/O, dir tree, process execution (sync + streaming), curl, session, image base64 reading.
 - Streaming output uses `tokio::process::Command` + `app.emit()` to push `StreamEvent { id, stream, data }` per line.
+- **Notable commands beyond plain file I/O**:
+  - `shell_exec` — runs `/bin/bash -l -c <cmd>`; output streams via `shell-output-${id}` events (distinct prefix from `process-output-${id}`).
+  - `read_file_base64` — reads images as base64 for in-editor preview.
+  - `reveal_in_finder` — shells out to `open -R <path>`.
+  - `execute_curl` — parses curl-style args and streams response (supports SSE) via `process-output-${id}`.
 
 ### Key Patterns
 
@@ -57,4 +67,5 @@ No test framework is configured.
 
 - **No HTML5 Drag API** in file tree — Tauri WebView hijacks `dragover`/`drop`. Use mouse events instead.
 - **macOS only** (10.15+). Platform-specific APIs like `reveal_in_finder` use `open -R`.
-- **`withGlobalTauri: true`** — IPC arguments must be passed as an object with keys matching the Rust parameter names exactly.
+- **`withGlobalTauri: true`** — always access Tauri APIs via `window.__TAURI__`, never `import` from `@tauri-apps/api`.
+- **IPC parameter naming**: Tauri v2 auto-converts JS `camelCase` → Rust `snake_case` parameters. Either form works in the `invoke` args object (e.g., `{ curlCommand }` matches Rust `curl_command`; `{ old_path, new_path }` works too). What you must NOT do is rename the keys arbitrarily — they have to map to the Rust signature one way or the other. `FileEntry` *struct fields* in returned data stay snake_case (`is_dir`, not `isDir`).
