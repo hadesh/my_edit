@@ -20,6 +20,9 @@ export interface Tab {
   cursorPos: { line: number; ch: number }
   isImage: boolean
   imageData?: ImageData
+  // 跨会话稳定的草稿 ID —— 对应 ~/Library/Caches/com.myedit.app/drafts/{draftId}.json
+  // 创建 tab 时一次性分配,贯穿整个生命周期不变
+  draftId: string
 }
 
 // 终端输出行
@@ -66,9 +69,12 @@ export interface SessionData {
   workspaceRoot: string | null
   activeFilePath: string | null
   openFiles: Array<{
-    path: string
+    path: string | null            // 临时文件为 null
     cursorPos: { line: number; ch: number }
     scrollInfo: { left: number; top: number } | null
+    draftId?: string               // 草稿文件标识（可选,兼容老 session)
+    isUntitled?: boolean           // true 表示未命名临时文件
+    title?: string                 // 临时文件恢复需要
   }>
   fileTreeOrder: Record<string, string[]>
 }

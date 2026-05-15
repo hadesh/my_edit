@@ -30,6 +30,7 @@ import {
 } from './hooks/useIPC'
 import { useTauriEvent } from './hooks/useTauriEvent'
 import { useSession } from './hooks/useSession'
+import { writeDraft, deleteDraft, newDraftId } from './hooks/useDraft'
 import type { Tab, FileEntry, ImageData } from './types'
 import { getExtension, getLanguageName } from './utils/langUtils'
 import styles from './App.module.css'
@@ -237,6 +238,8 @@ function ConfirmCloseDialog() {
     if (tab.path && !tab.isImage) {
       try {
         await writeFile(tab.path, tab.content)
+        // 已落盘到真实文件,清掉草稿
+        await deleteDraft(tab.draftId)
       } catch (err) {
         console.error('保存失败:', err)
       }
@@ -246,6 +249,8 @@ function ConfirmCloseDialog() {
   }
 
   const handleDiscard = () => {
+    // 用户主动放弃修改,删除对应草稿(避免污染缓存目录)
+    deleteDraft(tab.draftId)
     removeTab(pendingTabId)
     setPendingTabId(null)
   }
@@ -336,6 +341,8 @@ export default function App() {
           dirty: false,
           savedContent: activeTab.content,
         })
+        // 内容已落盘到真实文件,清掉草稿(draftId 保留以备后续修改复用)
+        deleteDraft(activeTab.draftId)
         showToast('已保存', 'success')
       }
     } catch (err) {
@@ -397,6 +404,7 @@ export default function App() {
             cursorPos: { line: 0, ch: 0 },
             isImage: true,
             imageData,
+            draftId: newDraftId(),
           }
           addTabAndActivate(tab)
           return
@@ -414,6 +422,7 @@ export default function App() {
           scrollInfo: null,
           cursorPos: { line: 0, ch: 0 },
           isImage: false,
+          draftId: newDraftId(),
         }
         addTabAndActivate(tab)
 
@@ -475,6 +484,7 @@ export default function App() {
             scrollInfo: null,
             cursorPos: { line: 0, ch: 0 },
             isImage: false,
+            draftId: newDraftId(),
           }
           addTabAndActivate(newTab)
           break
@@ -576,6 +586,7 @@ export default function App() {
               try {
                 await writeFile(activeTab.path, activeTab.content)
                 store.updateTab(activeTab.id, { dirty: false, savedContent: activeTab.content })
+                deleteDraft(activeTab.draftId)
                 showToast('已保存', 'success')
               } catch (err) {
                 showToast(`保存失败: ${err}`, 'error')
@@ -629,6 +640,7 @@ export default function App() {
                 try {
                   await writeFile(activeTab.path, activeTab.content)
                   store.updateTab(activeTab.id, { dirty: false, savedContent: activeTab.content })
+                  deleteDraft(activeTab.draftId)
                 } catch (err) {
                   showToast(`保存失败: ${err}`, 'error')
                   break
@@ -784,6 +796,7 @@ export default function App() {
             try {
               await writeFile(activeTab.path, activeTab.content)
               store.updateTab(activeTab.id, { dirty: false, savedContent: activeTab.content })
+              deleteDraft(activeTab.draftId)
               showToast('已保存', 'success')
             } catch (err) {
               showToast(`保存失败: ${err}`, 'error')
@@ -910,6 +923,7 @@ export default function App() {
           try {
             await writeFile(tab.path!, tab.content)
             store.updateTab(tab.id, { dirty: false, savedContent: tab.content })
+            deleteDraft(tab.draftId)
           } catch (err) {
             showToast(`保存 ${tab.title} 失败: ${err}`, 'error')
           }
@@ -952,6 +966,7 @@ export default function App() {
               try {
                 await writeFile(activeTab.path, activeTab.content)
                 store.updateTab(activeTab.id, { dirty: false, savedContent: activeTab.content })
+                deleteDraft(activeTab.draftId)
               } catch (err) {
                 showToast(`保存失败: ${err}`, 'error')
                 return
@@ -1027,6 +1042,19 @@ export default function App() {
   useEffect(() => {
     triggerSaveSession()
   }, [store.activeTabId, store.tabs.length, triggerSaveSession])
+
+  // ── 自动保存草稿 ────────────────────────────────────────
+  //
+  // 每次 tabs 变化都重新调度一次 writeDraft;writeDraft 内部按 draftId 维护
+  // debounce timer,持续输入期间只会延后,停止输入 500ms 后才真正落盘
+  useEffect(() => {
+    for (const tab of tabs) {
+      if (tab.isImage) continue
+      if (tab.path === null || tab.dirty) {
+        writeDraft(tab)
+      }
+    }
+  }, [tabs])
 
   // ── 渲染布局 ─────────────────────────────────────────────
 

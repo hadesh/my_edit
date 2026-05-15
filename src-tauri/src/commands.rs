@@ -495,6 +495,79 @@ pub fn reveal_in_finder(path: String) -> Result<(), String> {
     Ok(())
 }
 
+// ─── 草稿(自动保存)缓存 ───────────────────────────────────
+//
+// 路径: $APP_CACHE_DIR/drafts/{draft_id}.json
+// 在 macOS 下解析为 ~/Library/Caches/com.myedit.app/drafts/
+//
+// 写入采用"先写 .tmp 再 rename"的原子写入,防止断电时草稿损坏
+// draft_id 由前端用 crypto.randomUUID() 生成,跨会话稳定
+
+fn drafts_dir(app: &AppHandle) -> Result<std::path::PathBuf, String> {
+    let dir = app
+        .path()
+        .app_cache_dir()
+        .map_err(|e| format!("获取缓存目录失败: {}", e))?
+        .join("drafts");
+    if !dir.exists() {
+        fs::create_dir_all(&dir).map_err(|e| format!("创建草稿目录失败: {}", e))?;
+    }
+    Ok(dir)
+}
+
+#[tauri::command]
+pub fn write_draft(app: AppHandle, draft_id: String, payload: String) -> Result<(), String> {
+    let dir = drafts_dir(&app)?;
+    let final_path = dir.join(format!("{}.json", draft_id));
+    let tmp_path = dir.join(format!("{}.json.tmp", draft_id));
+
+    fs::write(&tmp_path, payload).map_err(|e| format!("写入草稿临时文件失败: {}", e))?;
+    fs::rename(&tmp_path, &final_path).map_err(|e| {
+        // rename 失败时尝试清理临时文件
+        let _ = fs::remove_file(&tmp_path);
+        format!("提交草稿失败: {}", e)
+    })?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn read_draft(app: AppHandle, draft_id: String) -> Result<Option<String>, String> {
+    let path = drafts_dir(&app)?.join(format!("{}.json", draft_id));
+    if !path.exists() {
+        return Ok(None);
+    }
+    fs::read_to_string(&path)
+        .map(Some)
+        .map_err(|e| format!("读取草稿失败: {}", e))
+}
+
+#[tauri::command]
+pub fn delete_draft(app: AppHandle, draft_id: String) -> Result<(), String> {
+    let path = drafts_dir(&app)?.join(format!("{}.json", draft_id));
+    if !path.exists() {
+        return Ok(());
+    }
+    fs::remove_file(&path).map_err(|e| format!("删除草稿失败: {}", e))
+}
+
+#[tauri::command]
+pub fn list_drafts(app: AppHandle) -> Result<Vec<String>, String> {
+    let dir = drafts_dir(&app)?;
+    let entries = fs::read_dir(&dir).map_err(|e| format!("读取草稿目录失败: {}", e))?;
+    let mut ids = Vec::new();
+    for entry in entries.flatten() {
+        let p = entry.path();
+        if p.is_file() {
+            if let Some(stem) = p.file_stem().and_then(|s| s.to_str()) {
+                if p.extension().and_then(|s| s.to_str()) == Some("json") {
+                    ids.push(stem.to_string());
+                }
+            }
+        }
+    }
+    Ok(ids)
+}
+
 #[tauri::command]
 pub fn save_session(app: AppHandle, data: String) -> Result<(), String> {
     let path = app

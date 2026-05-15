@@ -27,6 +27,10 @@ pub fn run() {
             commands::reveal_in_finder,
             commands::shell_exec,
             commands::read_file_base64,
+            commands::write_draft,
+            commands::read_draft,
+            commands::delete_draft,
+            commands::list_drafts,
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")
