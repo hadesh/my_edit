@@ -40,7 +40,8 @@ No test framework is configured.
 - **IPC layer**: `src/hooks/useIPC.ts` wraps all `window.__TAURI__.core.invoke` calls. Tauri uses `withGlobalTauri: true`, so never `import` from `@tauri-apps/api` — always access via `window.__TAURI__`.
 - **Event bridge**: Components communicate via `window.dispatchEvent(new CustomEvent(...))` for cross-cutting actions (`open-file`, `menu-action`, `save-session`, `terminal-action`, `confirm-close-tab`). `App.tsx` handles routing these events.
 - **Tauri events**: `src/hooks/useTauriEvent.ts` wraps `window.__TAURI__.event.listen` for Rust→JS events (`exit-requested`, `process-output-${id}`, `shell-output-${id}`).
-- **Session**: `src/hooks/useSession.ts` — persists workspace/tabs/scroll to `~/.myedit_session.json` (Rust resolves `$HOME` via `app.path().home_dir()`). Fire-and-forget on tab switch/close; awaited on app exit.
+- **Session**: `src/hooks/useSession.ts` — persists workspace/tabs/scroll to `~/.myedit_session.json` (Rust resolves `$HOME` via `app.path().home_dir()`). Fire-and-forget on tab switch/close; awaited on app exit. 启动期由模块级标志守门 saveSession,避免 restoreSession 完成前用空 tabs 覆盖 session 文件;StrictMode 双跑由 `hasStartedRestore` 防重入。
+- **Drafts (auto-save)**: `src/hooks/useDraft.ts` — 每个 Tab 持有跨会话稳定的 `draftId`(UUID),内容变化 debounce 500ms 后原子写入 `$APP_CACHE_DIR/drafts/{draftId}.json`(macOS: `~/Library/Caches/com.myedit.app/drafts/`)。下次启动从草稿恢复:临时文件按 `title` 重建为"未命名 N";磁盘文件与原盘内容比对,有差异则恢复并标 dirty。保存到磁盘后删除草稿,启动末尾清理孤儿草稿。Rust 端命令:`write_draft` / `read_draft` / `delete_draft` / `list_drafts`(详见 `commands.rs:498`)。
 - **Components**: 13 component directories under `src/components/` — `Editor/`, `Sidebar/`, `TabsBar/`, `Terminal/`, `FindBar/`, `PreviewPanel/`, `FileSearchOverlay/`, `Modal/`, `Toast/`, `ContextMenu/`, `ShortcutsOverlay/`, `StatusBar/`, `TitleBar/`. Each ships its own `*.module.css`.
 - **Styles**: CSS Modules per component (`*.module.css`), global theme variables in `src/styles/variables.css`.
 - **Editor**: CodeMirror 6 via `src/hooks/useCodeMirror.ts`. Language extensions in `src/utils/langUtils.ts`.
@@ -48,7 +49,7 @@ No test framework is configured.
 ### Backend (Rust)
 
 - `src-tauri/src/lib.rs` — Tauri builder, plugin registration, `ExitRequested` interception (prevents immediate exit, emits `exit-requested` to frontend).
-- `src-tauri/src/commands.rs` — All `#[tauri::command]` handlers: file I/O, dir tree, process execution (sync + streaming), curl, session, image base64 reading.
+- `src-tauri/src/commands.rs` — All `#[tauri::command]` handlers: file I/O, dir tree, process execution (sync + streaming), curl, session, drafts (`write_draft` / `read_draft` / `delete_draft` / `list_drafts`,原子 rename 写入), image base64 reading.
 - Streaming output uses `tokio::process::Command` + `app.emit()` to push `StreamEvent { id, stream, data }` per line.
 - **Notable commands beyond plain file I/O**:
   - `shell_exec` — runs `/bin/bash -l -c <cmd>`; output streams via `shell-output-${id}` events (distinct prefix from `process-output-${id}`).
@@ -62,6 +63,7 @@ No test framework is configured.
 - **FileEntry fields use snake_case** (`is_dir`, not `isDir`) — must match Rust struct exactly.
 - **File tree**: Directories filtered to hide dotfiles, `node_modules`, `target`. Max depth 5 levels.
 - **Tab dirty tracking**: Content compared against `savedContent` field on each tab.
+- **Tab `draftId`**: 每个 Tab 创建时一次性分配 UUID(`newDraftId()`),贯穿生命周期不变;`SessionData.openFiles[i]` 同步存 `draftId`(可选,兼容老 session)。临时文件 `path: null` + `isUntitled: true` + `title` 三者必备。
 
 ## Constraints
 
